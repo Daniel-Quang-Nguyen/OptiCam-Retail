@@ -1,0 +1,1 @@
+"""OptiCam FastAPI backend."""

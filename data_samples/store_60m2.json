@@ -1,0 +1,67 @@
+{
+  "version": "1.0",
+  "name": "Layout 1: Chuẩn 60 m2 (10m x 6m)",
+  "widthM": 10.0,
+  "heightM": 6.0,
+  "gridM": 0.5,
+  "pixelsPerMeter": 68,
+  "obstacles": [
+    {
+      "id": "pos_1",
+      "type": "pos",
+      "label": "Quầy POS",
+      "x": 1.0,
+      "y": 1.0,
+      "w": 1.5,
+      "h": 0.8,
+      "elev": 1.1,
+      "angle": 0.0
+    },
+    {
+      "id": "ent_1",
+      "type": "entrance",
+      "label": "Cửa ra vào",
+      "x": 0.5,
+      "y": 0.0,
+      "w": 1.5,
+      "h": 0.2,
+      "elev": 2.4,
+      "angle": 0.0
+    },
+    {
+      "id": "sh_1",
+      "type": "shelf",
+      "label": "Kệ A",
+      "x": 4.0,
+      "y": 1.0,
+      "w": 1.0,
+      "h": 4.0,
+      "elev": 1.8,
+      "angle": 0.0
+    },
+    {
+      "id": "sh_2",
+      "type": "shelf",
+      "label": "Kệ B",
+      "x": 6.0,
+      "y": 1.0,
+      "w": 1.0,
+      "h": 4.0,
+      "elev": 1.8,
+      "angle": 0.0
+    },
+    {
+      "id": "sh_3",
+      "type": "shelf",
+      "label": "Kệ C",
+      "x": 8.0,
+      "y": 1.0,
+      "w": 1.0,
+      "h": 4.0,
+      "elev": 1.8,
+      "angle": 0.0
+    }
+  ],
+  "risk": {},
+  "cameras": []
+}

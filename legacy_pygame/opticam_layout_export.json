@@ -1,0 +1,120 @@
+{
+  "name": "Layout 1: Chuẩn 60 m2 (10m x 6m)",
+  "width": 10.0,
+  "height": 6.0,
+  "grid_size": 0.5,
+  "obstacles": [
+    {
+      "id": "pos_1",
+      "type": "pos",
+      "name": "Quay POS",
+      "x": 1.0,
+      "y": 1.0,
+      "width": 1.5,
+      "height": 0.8,
+      "elevation": 1.1,
+      "angle": 0.0,
+      "color": [
+        239,
+        68,
+        68
+      ]
+    },
+    {
+      "id": "ent_1",
+      "type": "entrance",
+      "name": "Cua Ra Vao",
+      "x": 0.5,
+      "y": 0.0,
+      "width": 1.5,
+      "height": 0.2,
+      "elevation": 2.4,
+      "angle": 0.0,
+      "color": [
+        248,
+        113,
+        113
+      ]
+    },
+    {
+      "id": "sh_1",
+      "type": "shelf",
+      "name": "Ke A",
+      "x": 4.0,
+      "y": 1.0,
+      "width": 1.0,
+      "height": 4.0,
+      "elevation": 1.8,
+      "angle": 0.0,
+      "color": [
+        59,
+        130,
+        246
+      ]
+    },
+    {
+      "id": "sh_2",
+      "type": "shelf",
+      "name": "Ke B",
+      "x": 6.0,
+      "y": 1.0,
+      "width": 1.0,
+      "height": 4.0,
+      "elevation": 1.8,
+      "angle": 0.0,
+      "color": [
+        59,
+        130,
+        246
+      ]
+    },
+    {
+      "id": "sh_3",
+      "type": "shelf",
+      "name": "Ke C",
+      "x": 8.0,
+      "y": 1.0,
+      "width": 1.0,
+      "height": 4.0,
+      "elevation": 1.8,
+      "angle": 0.0,
+      "color": [
+        59,
+        130,
+        246
+      ]
+    }
+  ],
+  "cameras": [
+    {
+      "id": "CAM-01",
+      "x": 1.5,
+      "y": 0.0,
+      "pan_angle": 75,
+      "fov": 85,
+      "range": 8.0,
+      "target": "POS & Cửa chính (Vùng Đỏ)",
+      "model": "Hikvision 4MP Full HD (Lens 2.8mm)"
+    },
+    {
+      "id": "CAM-02",
+      "x": 5.5,
+      "y": 0.0,
+      "pan_angle": 90,
+      "fov": 75,
+      "range": 8.0,
+      "target": "Hành lang Kệ A-B",
+      "model": "Hikvision 2MP (Lens 3.6mm)"
+    },
+    {
+      "id": "CAM-03",
+      "x": 7.5,
+      "y": 0.0,
+      "pan_angle": 90,
+      "fov": 75,
+      "range": 8.0,
+      "target": "Hành lang Kệ B-C",
+      "model": "Hikvision 2MP (Lens 3.6mm)"
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "version": "1.0",
+  "name": "Layout 2: Circle K 75 m2 (12.5m x 6m)",
+  "widthM": 12.5,
+  "heightM": 6.0,
+  "gridM": 0.5,
+  "pixelsPerMeter": 68,
+  "obstacles": [
+    {
+      "id": "pos_1",
+      "type": "pos",
+      "label": "Quầy POS",
+      "x": 1.5,
+      "y": 4.2,
+      "w": 1.5,
+      "h": 0.8,
+      "elev": 1.1,
+      "angle": 0.0
+    },
+    {
+      "id": "ent_1",
+      "type": "entrance",
+      "label": "Cửa chính",
+      "x": 1.5,
+      "y": 5.8,
+      "w": 1.5,
+      "h": 0.2,
+      "elev": 2.4,
+      "angle": 0.0
+    },
+    {
+      "id": "sh_1",
+      "type": "shelf",
+      "label": "Kệ Nước",
+      "x": 4.5,
+      "y": 1.0,
+      "w": 1.0,
+      "h": 4.0,
+      "elev": 1.8,
+      "angle": 0.0
+    },
+    {
+      "id": "sh_2",
+      "type": "shelf",
+      "label": "Kệ Snack",
+      "x": 6.5,
+      "y": 1.0,
+      "w": 1.0,
+      "h": 4.0,
+      "elev": 1.8,
+      "angle": 0.0
+    },
+    {
+      "id": "sh_3",
+      "type": "shelf",
+      "label": "Kệ Mỹ phẩm",
+      "x": 8.5,
+      "y": 1.0,
+      "w": 1.0,
+      "h": 4.0,
+      "elev": 1.8,
+      "angle": 0.0
+    },
+    {
+      "id": "sh_4",
+      "type": "shelf",
+      "label": "Kệ Tổng hợp",
+      "x": 10.5,
+      "y": 1.0,
+      "w": 1.0,
+      "h": 4.0,
+      "elev": 1.8,
+      "angle": 0.0
+    }
+  ],
+  "risk": {},
+  "cameras": []
+}

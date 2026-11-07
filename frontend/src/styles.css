@@ -1,0 +1,40 @@
+:root { --ink:#0f172a; --muted:#64748b; --line:#cbd5e1; --bg:#eef2f6; --card:#fff; --accent:#0369a1; --pass:#15803d; --fail:#b91c1c; }
+@media (prefers-color-scheme: dark) { :root { --ink:#e2e8f0; --muted:#94a3b8; --line:#334155; --bg:#0b1220; --card:#131c2e; --accent:#38bdf8; --pass:#4ade80; --fail:#f87171; } }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.45 "Segoe UI", system-ui, sans-serif; }
+.app { padding:16px 20px; max-width:1500px; margin:auto; }
+header { display:flex; justify-content:space-between; gap:16px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+h1 { margin:0; font-size:22px; } h3 { margin:0 0 8px; font-size:15px; }
+.toolbar, .row { display:flex; gap:6px; align-items:center; flex-wrap:wrap; } .toolbar { margin-bottom:10px; }
+.toolbar span:not(.sep):not(.muted) { font-weight:600; margin-left:8px; } .sep { flex:1; }
+.col { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+button, .btn { font:inherit; padding:5px 10px; border:1.5px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); cursor:pointer; }
+button:hover, .btn:hover { border-color:var(--accent); } button:disabled { opacity:.45; cursor:default; }
+button:focus-visible, .btn:focus-within { outline:2px solid var(--accent); outline-offset:1px; }
+button.on { background:var(--accent); border-color:var(--accent); color:#fff; } button.primary { background:var(--pass); border-color:var(--pass); color:#fff; font-weight:600; }
+main { display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap; } aside { flex:1; min-width:340px; max-width:520px; display:flex; flex-direction:column; gap:12px; }
+.stage-wrap { position:relative; display:inline-block; background:var(--card); border:1px solid var(--line); border-radius:8px; overflow:visible; }
+.tip { position:absolute; pointer-events:none; background:rgba(15,23,42,.92); color:#fff; padding:5px 9px; border-radius:6px; font-size:12px; z-index:5; }
+.panel { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px; }
+table { width:100%; border-collapse:collapse; font-size:13px; } th, td { padding:5px 6px; border-bottom:1px solid var(--line); text-align:left; } td { font-variant-numeric:tabular-nums; }
+.pass { color:var(--pass); font-weight:700; } .fail { color:var(--fail); font-weight:700; }
+.muted { color:var(--muted); } .small { font-size:12px; } .wrap { flex-wrap:wrap; }
+.legend { display:flex; gap:14px; margin-top:8px; flex-wrap:wrap; font-size:12px; } .legend i { display:inline-block; width:12px; height:12px; margin-right:5px; border:1px solid var(--line); vertical-align:-1px; }
+.modal { position:fixed; inset:0; background:rgba(15,23,42,.6); display:grid; place-items:center; padding:16px; z-index:20; }
+.modal-box { background:var(--card); border-radius:10px; padding:20px; max-width:900px; width:100%; max-height:90vh; overflow:auto; } .scroll-x { overflow-x:auto; }
+.toast { position:fixed; top:14px; left:50%; transform:translateX(-50%); background:var(--pass); color:#fff; padding:8px 16px; border-radius:6px; z-index:30; }
+@media (prefers-reduced-motion: no-preference) { button { transition:border-color .12s; } }
+.field { display:flex; flex-direction:column; font-size:12px; color:var(--muted); gap:2px; flex:1; min-width:70px; }
+input[type=number], input:not([type]), select { font:inherit; padding:4px 6px; border:1.5px solid var(--line); border-radius:6px; background:var(--card); color:var(--ink); width:100%; }
+input:focus-visible, select:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+.person-info { position:absolute; z-index:8; width:258px; padding:12px; border:1px solid var(--line); border-radius:8px; background:var(--card); box-shadow:0 8px 24px rgba(15,23,42,.22); }
+.person-info-header { display:flex; align-items:flex-start; justify-content:space-between; gap:8px; margin:0 0 8px; }
+.person-info-header button { padding:0 7px; font-size:18px; line-height:1.2; }
+.person-info > p { margin:8px 0; }
+.person-info table { font-size:12px; }
+.dori-badge { display:inline-block; padding:1px 5px; border-radius:4px; white-space:nowrap; }
+.dori-identification { background:rgba(22,163,74,.18); color:#15803d; }
+.dori-recognition { background:rgba(132,204,22,.2); color:#4d7c0f; }
+.dori-observation { background:rgba(250,204,21,.24); color:#a16207; }
+.dori-detection { background:rgba(249,115,22,.2); color:#c2410c; }
+.dori-blind { background:rgba(220,38,38,.16); color:#b91c1c; }
