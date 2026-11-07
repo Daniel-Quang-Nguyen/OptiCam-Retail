@@ -8,7 +8,21 @@ from typing import Any, Sequence
 FACE_HEIGHT_M = 1.6
 DORI_FACTORS = ((250, 1.0), (125, 0.75), (62, 0.4), (25, 0.2), (0, 0.0))
 
-GridPoint = tuple[float, float, int]
+GridPoint = tuple[float, float, float]
+RISK_DEFAULTS = {
+    "pos": (5.0, 1.0, 2.5),
+    "entrance": (5.0, 1.0, 2.5),
+    "shelf": (3.0, 1.0, 2.0),
+}
+
+
+def risk_weight_at(distance: float, wmax: float, r0: float, radius: float) -> float:
+    if radius <= r0 or distance <= r0:
+        return wmax
+    if distance >= radius:
+        return 1.0
+    t = (distance - r0) / (radius - r0)
+    return 1.0 + (wmax - 1.0) * (1.0 - t)
 
 
 def dori_factor(ppm: float) -> float:
@@ -106,6 +120,34 @@ def _point_inside_obstacle(point: tuple[float, float], obstacle: Any) -> bool:
     return abs(local_x) <= width / 2 and abs(local_y) <= height / 2
 
 
+def _distance_to_obstacle(point: tuple[float, float], obstacle: Any) -> float:
+    rect = _obstacle_rect(obstacle)
+    if rect is None:
+        return math.inf
+    x, y, width, height, angle_deg = rect
+    cx, cy = x + width / 2, y + height / 2
+    angle = math.radians(-angle_deg)
+    dx, dy = point[0] - cx, point[1] - cy
+    local_x = dx * math.cos(angle) - dy * math.sin(angle)
+    local_y = dx * math.sin(angle) + dy * math.cos(angle)
+    return math.hypot(max(0.0, abs(local_x) - width / 2), max(0.0, abs(local_y) - height / 2))
+
+
+def obstacle_risk_weight(point: tuple[float, float], obstacles: Sequence[Any]) -> float:
+    weight = 1.0
+    for obstacle in obstacles:
+        obstacle_type = _value(obstacle, "type", "shelf")
+        defaults = RISK_DEFAULTS.get(obstacle_type)
+        if defaults is None:
+            continue
+        wmax, r0, radius = defaults
+        wmax = float(_value(obstacle, "riskWmax", wmax))
+        r0 = float(_value(obstacle, "riskR0", r0))
+        radius = float(_value(obstacle, "riskR", radius))
+        weight = max(weight, risk_weight_at(_distance_to_obstacle(point, obstacle), wmax, r0, radius))
+    return weight
+
+
 def camera_ppm(
     camera: dict[str, Any],
     point: tuple[float, float],
@@ -136,11 +178,15 @@ class OptiCamGreedy:
         room_length: float,
         obstacles_data: Sequence[Any],
         target_height: float = FACE_HEIGHT_M,
+        risk_strokes: Sequence[Any] = (),
+        legacy_risk: dict[str, float] | None = None,
     ):
         self.room_width = room_width
         self.room_length = room_length
         self.obstacles = list(obstacles_data)
         self.target_height = target_height
+        self.risk_strokes = list(risk_strokes)
+        self.legacy_risk = legacy_risk or {}
 
     def generate_grid(
         self,
@@ -160,7 +206,14 @@ class OptiCamGreedy:
                     _point_inside_obstacle((x, y), obstacle) for obstacle in self.obstacles
                 ):
                     continue
-                weight = risk_matrix[row][col] if risk_matrix is not None else 1
+                weight = risk_matrix[row][col] if risk_matrix is not None else obstacle_risk_weight((x, y), self.obstacles)
+                if risk_matrix is None:
+                    weight = float(self.legacy_risk.get(f"{row}_{col}", weight))
+                    for stroke in self.risk_strokes:
+                        sx, sy = float(_value(stroke, "x", 0)), float(_value(stroke, "y", 0))
+                        radius = float(_value(stroke, "radius", 0))
+                        if math.hypot(x - sx, y - sy) <= radius:
+                            weight = float(_value(stroke, "weight", weight))
                 points.append((x, y, weight))
         return points
 

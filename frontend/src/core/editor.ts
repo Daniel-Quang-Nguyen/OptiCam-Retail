@@ -46,5 +46,5 @@ export function resizeRoom(l: Layout, W: number, H: number): Layout {
   const w = round2(clamp(snap(W, l.gridM), 3, 40)), h = round2(clamp(snap(H, l.gridM), 3, 40));
   const obstacles = l.obstacles.map((o) => placeObstacle(o, o.x + o.w / 2, o.y + o.h / 2, w, h, l.gridM));
   const cameras: Camera[] = l.cameras.map((c) => { const [x, y] = snapToWall(c.x, c.y, w, h, l.gridM); return { ...c, x, y }; });
-  return { ...l, widthM: w, heightM: h, obstacles, cameras, risk: {} };
+  return { ...l, widthM: w, heightM: h, obstacles, cameras, risk: {}, riskStrokes: [] };
 }

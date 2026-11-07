@@ -25,10 +25,16 @@ trên trình duyệt.
 4. Chọn vật cản để đổi tên/kích thước/chiều cao; xoay bằng nút xoay hoặc phím `R`.
    Cửa được khóa vào cạnh tường; vật cản không được chồng lấn.
 5. Chọn **Heatmap DORI**, **Ma trận rủi ro W**, hoặc **Tắt** để đổi lớp phủ.
-   Chọn cọ `W = 5`, `W = 3`, `W = 1`, rồi kéo trên ô sàn để ghi đè trọng số.
+   Chọn cọ `W = 5`, `W = 3`, `W = 1`, rồi kéo trên sơ đồ để ghi đè trọng số. Nét cọ được
+   lưu theo vị trí/bán kính thực nên giữ nguyên khi đổi kích thước lưới. Heatmap rủi ro dùng
+   chuyển sắc liên tục xanh → lục lam → vàng → cam → đỏ; khi phóng đủ lớn, mỗi ô hiện giá trị
+   W thực tế để phân biệt rõ các trọng số thập phân.
 6. Chọn **Auto-Optimize (3 Cameras)** hoặc **Tối ưu theo số cam hiện có** để nhận vị trí đề
-   xuất. Lựa chọn thứ hai dùng số lượng và thông số của các camera hiện có; thông báo cho biết
-   số camera được đặt và dùng backend hay fallback client.
+   xuất. Nút **Tìm số cam tối thiểu (Đỏ 95% · Vàng 80%)** lần lượt đánh giá các tiền tố của
+   phương án Greedy, dừng ở số camera ít nhất đạt cả hai KPI. Cấu hình FOV, độ phân giải,
+   tầm xa, chiều cao và model được giữ theo thứ tự camera đã nhập; vị trí và hướng được tối ưu
+   lại. Nếu không đạt KPI với số camera hiện có, ứng dụng giữ toàn bộ phương án tốt nhất và
+   thông báo tỷ lệ thực tế trên Scorecard/toast.
 7. Chọn **Bảng BOM**, **Export JSON**, **Import JSON**, hoặc **PNG** để xem/tải kết quả.
 
 ### Thông số camera
@@ -41,6 +47,13 @@ trên trình duyệt.
 - **Chiều cao:** cao độ camera so với sàn; dùng để tính khoảng cách đến mặt phẳng mặt người.
 - **Điểm đánh giá trên người:** chọn mặt, ngực hoặc thắt lưng trong Inspector để tính heatmap
   và tối ưu camera. Cửa sổ của hình người luôn hiển thị riêng DORI theo bốn vùng cơ thể.
+- **Vùng trọng yếu:** mỗi POS/cửa mặc định có `(Wmax=5, r0=1 m, R=2.5 m)`; mỗi kệ có
+  `(Wmax=3, r0=1 m, R=2 m)`. Chọn vật thể để chỉnh ba giá trị này trong Inspector. W giữ ở
+  Wmax tới r0 rồi giảm tuyến tính về 1 tại R; nếu nhiều vùng chồng nhau, lấy W lớn nhất.
+  Màu chỉ gom để hiển thị (Đỏ `W≥4`, Vàng `2≤W<4`, Xanh `W<2`), còn Greedy dùng W số thực.
+  Cọ thủ công vẫn dùng mức 5/3/1 và ghi đè lên vùng tự động; nét vẽ sau cùng được ưu tiên.
+  Có thể chỉnh kích thước ô trong Inspector; nên chọn `gridM ≤ (R-r0)/3` để lấy mẫu vùng
+  chuyển tiếp đủ mịn (ví dụ vùng kệ mặc định khuyến nghị lưới không quá khoảng 0,33 m).
 
 ### Ảnh nền và tỷ lệ
 

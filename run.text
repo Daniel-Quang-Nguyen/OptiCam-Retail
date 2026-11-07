@@ -1,0 +1,18 @@
+# LAN DAU - BACKEND
+Set-Location 'D:\Download\opticam_tong_hop\OptiCam_BanGiao\backend'
+& "$env:LOCALAPPDATA\Microsoft\WindowsApps\py.exe" -3.11 -m venv .venv-win
+.\.venv-win\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv-win\Scripts\python.exe -m uvicorn main:app --reload --port 8000
+
+# LAN DAU - FRONTEND (MO POWERSHELL THU HAI)
+Set-Location 'D:\Download\opticam_tong_hop\OptiCam_BanGiao\frontend'
+npm.cmd ci --legacy-peer-deps
+npm.cmd run dev
+
+# CAC LAN SAU - BACKEND
+Set-Location 'D:\Download\opticam_tong_hop\OptiCam_BanGiao\backend'
+.\.venv-win\Scripts\python.exe -m uvicorn main:app --reload --port 8000
+
+# CAC LAN SAU - FRONTEND (MO POWERSHELL THU HAI)
+Set-Location 'D:\Download\opticam_tong_hop\OptiCam_BanGiao\frontend'
+npm.cmd run dev

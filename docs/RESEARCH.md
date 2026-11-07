@@ -6,6 +6,11 @@
 ## 1. Câu hỏi nghiên cứu & giả thuyết
 **Bài toán.** Với mặt bằng cửa hàng tiện lợi 50–80 m² và ngân sách K camera, chọn (điểm neo tường, góc pan) để tối đa hoá điểm an ninh có trọng số rủi ro, trong đó "nhìn rõ" được đo bằng PPM theo DORI (IEC 62676-4).
 
+**Lưu ý phiên bản mô hình.** Các CSV, số liệu và kết luận thí nghiệm bên dưới được sinh ra
+trước khi vùng rủi ro chuyển từ trọng số rời rạc 1/3/5 sang hàm liên tục theo khoảng cách.
+Không diễn giải chúng như kết quả đã kiểm chứng cho mô hình mới; cần chạy lại experiments
+và đánh giá lại thống kê trước khi dùng để so sánh hiệu quả hiện tại.
+
 | | Giả thuyết | Kiểm chứng |
 |---|---|---|
 | H1 | Weighted Greedy đạt ≥ 90% nghiệm tối ưu (vét cạn) | E1, E2 |

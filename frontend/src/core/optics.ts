@@ -4,11 +4,25 @@ import { deg, distToObs, norm360, rad, segmentRectInterval, type Pt } from './ge
 /** Ngưỡng DORI theo IEC 62676-4 (PPM) */
 export const DORI_MIN = { identification: 250, recognition: 125, observation: 62, detection: 25 } as const;
 export const DORI_FACTOR: Record<Dori, number> = { identification: 1, recognition: 0.75, observation: 0.4, detection: 0.2, blind: 0 };
-/** Mức DORI tối thiểu theo trọng số rủi ro: Đỏ 250 / Vàng 125 / Xanh 62 */
-export const REQUIRED_PPM: Record<Weight, number> = { 5: 250, 3: 125, 1: 62 };
+export const RISK_RED_THRESHOLD = 4;
+export const RISK_YELLOW_THRESHOLD = 2;
+export const REQUIRED_PPM = { red: 250, yellow: 125, green: 62 } as const;
 export const FACE_Z = 1.6;            // mặt phẳng khuôn mặt (m)
-export const RED_BUFFER = 1.0;        // vùng đệm quanh POS / cửa (m)
-export const YELLOW_BUFFER = 1.0;     // vùng đệm hành lang quanh kệ (m)
+export const RISK_DEFAULTS = {
+  pos: { wmax: 5, r0: 1, radius: 2.5 },
+  entrance: { wmax: 5, r0: 1, radius: 2.5 },
+  shelf: { wmax: 3, r0: 1, radius: 2 }
+} as const;
+
+export const riskBand = (weight: number): 'red' | 'yellow' | 'green' =>
+  weight >= RISK_RED_THRESHOLD ? 'red' : weight >= RISK_YELLOW_THRESHOLD ? 'yellow' : 'green';
+
+export const riskWeightAt = (distance: number, wmax: number, r0: number, radius: number): number => {
+  if (radius <= r0 || distance <= r0) return wmax;
+  if (distance >= radius) return 1;
+  const t = (distance - r0) / (radius - r0);
+  return 1 + (wmax - 1) * (1 - t);
+};
 
 export const doriOf = (ppm: number): Dori =>
   ppm >= DORI_MIN.identification ? 'identification' : ppm >= DORI_MIN.recognition ? 'recognition'
@@ -50,16 +64,34 @@ export function assessPersonAt(l: Layout, x: number, y: number): Array<PersonReg
 /** Rule-based Semantic Object Mapping + Manual Risk Brush → lưới ô 0.5m × 0.5m. Chỉ phụ thuộc vật cản/cọ tô, không phụ thuộc camera. */
 export function buildZones(l: Layout): Zone[] {
   const cols = Math.round(l.widthM / l.gridM), rows = Math.round(l.heightM / l.gridM);
-  const critical = l.obstacles.filter((o) => o.type === 'pos' || o.type === 'entrance');
-  const shelves = l.obstacles.filter((o) => o.type === 'shelf');
   const zones: Zone[] = [];
   for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
     const cx = (c + 0.5) * l.gridM, cy = (r + 0.5) * l.gridM;
     const solid = l.obstacles.some((o) => o.type !== 'entrance' && distToObs(cx, cy, o) < 1e-9);
     let w: Weight = 1;
-    if (critical.some((o) => distToObs(cx, cy, o) <= RED_BUFFER)) w = 5;
-    else if (shelves.some((o) => distToObs(cx, cy, o) <= YELLOW_BUFFER)) w = 3;
-    zones.push({ r, c, cx, cy, w: l.risk[`${r}_${c}`] ?? w, solid });
+    for (const obstacle of l.obstacles) {
+      const defaults = RISK_DEFAULTS[obstacle.type];
+      const obstacleWeight = riskWeightAt(
+        distToObs(cx, cy, obstacle),
+        obstacle.riskWmax ?? defaults.wmax,
+        obstacle.riskR0 ?? defaults.r0,
+        obstacle.riskR ?? defaults.radius
+      );
+      w = Math.max(w, obstacleWeight);
+    }
+    const legacyOverride = l.risk[`${r}_${c}`];
+    if (Number.isFinite(legacyOverride)) w = legacyOverride;
+    zones.push({ r, c, cx, cy, w, solid });
+  }
+  for (const stroke of l.riskStrokes) {
+    const minCol = Math.max(0, Math.ceil((stroke.x - stroke.radius) / l.gridM - 0.5));
+    const maxCol = Math.min(cols - 1, Math.floor((stroke.x + stroke.radius) / l.gridM - 0.5));
+    const minRow = Math.max(0, Math.ceil((stroke.y - stroke.radius) / l.gridM - 0.5));
+    const maxRow = Math.min(rows - 1, Math.floor((stroke.y + stroke.radius) / l.gridM - 0.5));
+    for (let r = minRow; r <= maxRow; r++) for (let c = minCol; c <= maxCol; c++) {
+      const zone = zones[r * cols + c];
+      if (Math.hypot(zone.cx - stroke.x, zone.cy - stroke.y) <= stroke.radius) zone.w = stroke.weight;
+    }
   }
   return zones;
 }
@@ -67,20 +99,21 @@ export function buildZones(l: Layout): Zone[] {
 export function evaluate(l: Layout, zones: Zone[]): { cells: Cell[]; score: Score } {
   const t0 = performance.now();
   const obstacles = blockerObstacles(l);
-  let redN = 0, redOk = 0, yelN = 0, yelOk = 0, weighted = 0;
+  let redN = 0, redOk = 0, yelN = 0, yelOk = 0, weighted = 0, redMinPpm = Number.POSITIVE_INFINITY;
   const cells: Cell[] = zones.map((z) => {
     if (z.solid) return { ...z, ppm: 0, dori: 'blind' as Dori };
     let ppm = 0;
     for (const cam of l.cameras) ppm = Math.max(ppm, ppmAt(cam, z.cx, z.cy, obstacles, l.targetHeight));
     const dori = doriOf(ppm);
-    if (z.w === 5) { redN++; if (ppm >= DORI_MIN.identification) redOk++; }
-    else if (z.w === 3) { yelN++; if (ppm >= DORI_MIN.recognition) yelOk++; }
+    const band = riskBand(z.w);
+    if (band === 'red') { redN++; redMinPpm = Math.min(redMinPpm, ppm); if (ppm >= DORI_MIN.identification) redOk++; }
+    else if (band === 'yellow') { yelN++; if (ppm >= DORI_MIN.recognition) yelOk++; }
     weighted += z.w * DORI_FACTOR[dori];
     return { ...z, ppm, dori };
   });
   const pct = (a: number, n: number) => (n ? Math.round((a / n) * 1000) / 10 : 100);
   return {
     cells,
-    score: { red: pct(redOk, redN), yellow: pct(yelOk, yelN), weighted: Math.round(weighted * 10) / 10, cams: l.cameras.length, ms: Math.round((performance.now() - t0) * 100) / 100 }
+    score: { red: pct(redOk, redN), yellow: pct(yelOk, yelN), redMinPpm: Number.isFinite(redMinPpm) ? Math.round(redMinPpm) : 0, weighted: Math.round(weighted * 10) / 10, cams: l.cameras.length, ms: Math.round((performance.now() - t0) * 100) / 100 }
   };
 }

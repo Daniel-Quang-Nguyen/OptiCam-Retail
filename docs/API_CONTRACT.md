@@ -24,9 +24,9 @@ locally in the browser.
   "gridM": 0.5,
   "targetHeight": 1.6,
   "obstacles": [
-    { "id": "shelf-1", "type": "shelf", "x": 3, "y": 2, "w": 2, "h": 0.6, "elev": 1.8, "angle": 0 }
+    { "id": "shelf-1", "type": "shelf", "x": 3, "y": 2, "w": 2, "h": 0.6, "elev": 1.8, "angle": 0, "riskWmax": 3, "riskR0": 1, "riskR": 2 }
   ],
-  "risk": { "4_6": 5 },
+  "riskStrokes": [{ "x": 4.25, "y": 2.75, "radius": 0.25, "weight": 4.5 }],
   "cameras": [
     { "id": "CAM-01", "x": 0, "y": 3, "pan": 0, "fov": 85, "res": 2560, "range": 10, "height": 2.4 }
   ]
@@ -39,6 +39,12 @@ cells by the dimension-based validation. Obstacles support `shelf`, `pos`, or `e
 are generic dictionaries, so camera-level constraints are not validated by Pydantic.
 `targetHeight` is the person point used by coverage calculations in meters: face `1.6`,
 chest `1.2`, or waist `0.9`; omitted values default to face height.
+Obstacle risk profiles accept `riskWmax` (1–5), `riskR0` (meters), and `riskR` (meters,
+greater than `riskR0`). Default POS/entrance profile is `(5, 1, 2.5)` and shelf profile is
+`(3, 1, 2)`. The UI computes a continuous risk matrix at grid-cell centers using the maximum
+weight from all obstacles, then applies manual strokes in order so the latest matching stroke
+wins. Each stroke stores metric `x`, `y`, `radius`, and `weight`; the legacy per-cell `risk`
+map remains accepted for older layouts.
 
 The frontend import normalizer additionally accepts legacy aliases:
 `width|widthM`, `height|heightM`, `grid_size|gridM`; obstacle `w|width`, `h|height`,
@@ -65,10 +71,11 @@ the matrices using `buildZones()`; blocked cells are excluded from coverage calc
     "version": "1.0", "name": "Demo", "widthM": 10, "heightM": 6, "gridM": 0.5,
     "obstacles": [],
     "risk": {},
+    "riskStrokes": [],
     "cameras": []
   },
   "grid": { "rows": 12, "cols": 20, "cellSizeM": 0.5 },
-  "riskMatrix": [[1, 1, 5]],
+  "riskMatrix": [[1, 2.75, 4.5]],
   "blockedMatrix": [[0, 0, 0]]
 }
 ```
@@ -76,7 +83,7 @@ the matrices using `buildZones()`; blocked cells are excluded from coverage calc
 The matrix snippets above are illustrative only; actual matrix dimensions must be exactly
 `rows × cols`. `cameraBudgetK` is 1–20. `cellSizeM` must match `layout.gridM`, and grid
 dimensions must equal `round(heightM / cellSizeM)` rows and `round(widthM / cellSizeM)`
-columns. Risk values are 1, 3, or 5; blocked values are 0 or 1. The grid may contain at most
+columns. Risk values are continuous numbers in `[1, 5]`; blocked values are 0 or 1. The grid may contain at most
 12,000 cells. Candidate evaluations are capped at 1,000,000; the optimizer coarsens wall
 anchor spacing when required.
 

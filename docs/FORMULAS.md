@@ -19,9 +19,23 @@ không phải chứng nhận hiệu năng camera thực.
 - Khoảng cách từ tâm ô đến vật cản chữ nhật (kể cả hình chữ nhật xoay) được tính trong
   hệ tọa độ local của hình chữ nhật. Ô nằm trong kệ/POS là ô đặc và không được tính là
   sàn; cửa không tạo ô đặc.
-- Mặc định `W = 5` nếu ô cách POS/cửa không quá `RED_BUFFER = 1.0 m`; nếu không, `W = 3`
-  khi cách kệ không quá `YELLOW_BUFFER = 1.0 m`; còn lại `W = 1`. Thứ tự này ưu tiên vùng đỏ.
-  Cọ rủi ro ghi đè W theo từng ô.
+- Mỗi vật thể có hồ sơ `(Wmax, r0, R)`. Mặc định POS/cửa là `(5, 1.0 m, 2.5 m)`, kệ là
+  `(3, 1.0 m, 2.0 m)`. Tại khoảng cách `d` đến hình chữ nhật:
+
+  ```text
+  t = clamp((d - r0) / (R - r0), 0, 1)
+  W_object(d) = 1 + (Wmax - 1) × (1 - t)
+  W_auto = max(1, W_object_1, ..., W_object_n)
+  ```
+
+  Trọng số giữ ở `Wmax` trong bán kính lõi `r0`, giảm tuyến tính về 1 tại `R`, và không
+  cộng dồn giữa vật thể. Người dùng có thể chỉnh hồ sơ từng vật thể trong Inspector.
+- Cọ rủi ro ghi các nét hình tròn `(x, y, radius, W)` theo mét. Mọi nét có tâm nằm trong
+  bán kính đều áp dụng; nét sau cùng khớp với ô sẽ ghi đè nét trước và công thức tự động.
+  Vì lưu theo tọa độ thực, thay đổi lưới không làm nét cọ lệch vị trí. Layout cũ vẫn đọc
+  được map `risk` theo chỉ số ô; dữ liệu mới dùng `riskStrokes`.
+- Trọng số là số thực trong `[1, 5]`. Ba màu chỉ là nhóm hiển thị: Đỏ `W ≥ 4`, Vàng
+  `2 ≤ W < 4`, Xanh `W < 2`. Tối ưu hóa dùng W liên tục, không làm tròn theo màu.
 
 ## 2. Góc pan và FOV
 
@@ -86,11 +100,12 @@ Score = Σ_cell W_cell × F(DORI_cell)
 Scorecard hiển thị thêm KPI:
 
 ```text
-Red %    = 100 × số ô W=5 có PPM≥250 / tổng số ô W=5
-Yellow % = 100 × số ô W=3 có PPM≥125 / tổng số ô W=3
+Red %    = 100 × số ô W≥4 có PPM≥250 / tổng số ô W≥4
+Yellow % = 100 × số ô 2≤W<4 có PPM≥125 / tổng số ô 2≤W<4
 ```
 
-Nếu một vùng không có ô nào, phần trăm vùng đó được xem là 100% trong scorecard.
+Scorecard cũng hiển thị PPM thấp nhất trong các ô vùng Đỏ. Nếu một nhóm không có ô nào,
+phần trăm nhóm đó được xem là 100%.
 
 ## 5. Greedy
 
@@ -116,6 +131,22 @@ kết quả backend và client fallback có thể khác vị trí camera.
 
 Greedy là heuristic; ngưỡng 95% là tỷ lệ ô đạt mức Detection, không phải bảo đảm 95% vùng
 đỏ đạt Identification hoặc 95% toàn mặt bằng được nhận diện.
+
+### Tìm số camera tối thiểu theo KPI vùng rủi ro
+
+Lệnh **Tìm số cam tối thiểu (Đỏ 95% · Vàng 80%)** chạy chuỗi Greedy có trọng số đến số
+lượng camera hiện có, với profile camera theo đúng thứ tự đã nhập. Sau mỗi bước, Scorecard
+được tính lại và chọn tiền tố ngắn nhất đạt đồng thời:
+
+```text
+Đỏ:   tỷ lệ ô có PPM ≥ 250 ≥ 95%
+Vàng: tỷ lệ ô có PPM ≥ 125 ≥ 80%
+```
+
+FOV, độ phân giải, tầm xa, chiều cao và model của từng profile được giữ nguyên; vị trí và
+pan là các biến optimizer được phép thay đổi. Đây là số camera tối thiểu tìm được trong
+chuỗi Greedy (không phải chứng minh tối ưu toàn cục). Nếu toàn bộ camera hiện có vẫn không
+đạt KPI, giữ phương án Greedy đủ số lượng và báo tỷ lệ thực tế.
 
 ## 6. BOM — chiều dài cáp ước tính
 

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { PRESETS, withManualCams } from '../data/presets';
 import { addObstacle, removeObstacle, resizeObstacle, resizeRoom } from './editor';
 import { fromApiResponse, toApiPayload } from './api';
+import { normalizeLayout } from './io';
+import { riskColor } from '../components/canvas/shared';
 import { obsPoly, satCollide } from './geometry';
 import { buildZones } from './optics';
 import { canPlacePerson } from './person';
@@ -40,13 +42,34 @@ describe('API adapter', () => {
   it('payload có ma trận rủi ro đúng kích thước', () => {
     const l = withManualCams(PRESETS[0]), p = toApiPayload(l, buildZones(l), 3);
     expect(p.riskMatrix).toHaveLength(12); expect(p.riskMatrix[0]).toHaveLength(20);
-    expect(p.riskMatrix.flat().every((w) => [1, 3, 5].includes(w))).toBe(true);
+    expect(p.riskMatrix.flat().every((w) => Number.isFinite(w) && w >= 1 && w <= 5)).toBe(true);
+    expect(p.riskMatrix.flat().some((w) => !Number.isInteger(w))).toBe(true);
     expect(p.layout.targetHeight).toBe(1.6);
+  });
+
+  describe('risk heatmap colors', () => {
+    it('uses visibly different continuous colors for fractional risk weights', () => {
+      expect(riskColor(1)).toBe('rgba(37,99,235,0.420)');
+      expect(riskColor(2.5)).not.toBe(riskColor(2));
+      expect(riskColor(3)).not.toBe(riskColor(2));
+      expect(riskColor(4.5)).not.toBe(riskColor(4));
+      expect(riskColor(0)).toBe(riskColor(1));
+      expect(riskColor(6)).toBe(riskColor(5));
+    });
   });
   it('response chấp nhận pan_angle và data.cameras', () => {
     const l = withManualCams(PRESETS[0]);
     expect(fromApiResponse({ data: { cameras: [{ x: 0, y: 3, pan_angle: 45 }] } }, l)[0].pan).toBe(45);
     expect(() => fromApiResponse({ cameras: [] }, l)).toThrow();
+  });
+  it('migrates legacy cell overrides to metric strokes and keeps them after grid changes', () => {
+    const layout = normalizeLayout({
+      widthM: 4, heightM: 3, gridM: 1, obstacles: [], cameras: [], risk: { '1_2': 4 }
+    });
+    expect(layout.risk).toEqual({});
+    expect(layout.riskStrokes[0]).toMatchObject({ x: 2.5, y: 1.5, weight: 4 });
+    const fineZones = buildZones({ ...layout, gridM: 0.25 });
+    expect(fineZones.some((zone) => zone.w === 4 && Math.hypot(zone.cx - 2.5, zone.cy - 1.5) < 0.7)).toBe(true);
   });
 });
 describe('Camera quality settings', () => {

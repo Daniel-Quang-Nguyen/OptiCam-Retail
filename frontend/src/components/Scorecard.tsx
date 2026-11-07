@@ -16,6 +16,7 @@ export function Scorecard({ d }: { d: Compare }) {
         <tbody>
           {row('Vùng Đỏ ≥ 250 PPM (KPI ≥ 95%)', (s) => `${s.red}%`, (s) => ok(s.red, 95))}
           {row('Hành lang ≥ 125 PPM (KPI ≥ 80%)', (s) => `${s.yellow}%`, (s) => ok(s.yellow, 80))}
+          {row('PPM thấp nhất vùng Đỏ', (s) => String(s.redMinPpm))}
           {row('Tổng điểm Σ W × DORI', (s) => String(s.weighted))}
           {row('Số camera', (s) => String(s.cams))}
         </tbody>

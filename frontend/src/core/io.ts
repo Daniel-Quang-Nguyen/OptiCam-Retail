@@ -1,4 +1,4 @@
-import { PERSON_TARGETS, type Camera, type Layout, type Obstacle, type Score } from '../types';
+import { PERSON_TARGETS, type Camera, type Layout, type Obstacle, type RiskStroke, type Score } from '../types';
 import { buildBom } from './bom';
 import { clamp } from './geometry';
 
@@ -23,18 +23,38 @@ export function normalizeLayout(raw: any): Layout {
   if (widthM < 3 || heightM < 3 || widthM > 40 || heightM > 40) throw new Error('Kích thước mặt bằng ngoài khoảng 3–40 m.');
   const obstacles: Obstacle[] = L.obstacles.map((o: any, i: number): Obstacle => {
     if (!TYPES.includes(o.type)) throw new Error(`Vật cản #${i + 1}: loại "${o.type}" không hợp lệ.`);
+    const defaults = o.type === 'shelf' ? { wmax: 3, r0: 1, radius: 2 } : { wmax: 5, r0: 1, radius: 2.5 };
+    const riskR0 = Math.max(0, num(o.riskR0, defaults.r0));
     return {
       id: String(o.id ?? `obs_${i}`), type: o.type, label: String(o.label ?? o.name ?? o.type),
       x: num(o.x, 0), y: num(o.y, 0), w: num(o.w ?? o.width, 1), h: num(o.h ?? o.height, 1),
-      elev: num(o.elev ?? o.elevation, o.type === 'shelf' ? 1.8 : 1.1), angle: num(o.angle, 0)
+      elev: num(o.elev ?? o.elevation, o.type === 'shelf' ? 1.8 : 1.1), angle: num(o.angle, 0),
+      riskWmax: Math.min(5, Math.max(1, num(o.riskWmax, defaults.wmax))),
+      riskR0,
+      riskR: Math.max(riskR0 + 0.1, num(o.riskR, defaults.radius))
     };
   });
   const cameras = normalizeCameras(L.cameras ?? [], widthM, heightM);
   const targetHeight = PERSON_TARGETS.find((target) => target.height === L.targetHeight)?.height ?? 1.6;
+  const riskStrokes: RiskStroke[] = Array.isArray(L.riskStrokes)
+    ? L.riskStrokes.filter((stroke: any) => Number.isFinite(stroke?.x) && Number.isFinite(stroke?.y) &&
+      Number.isFinite(stroke?.radius) && stroke.radius > 0 && Number.isFinite(stroke?.weight))
+      .map((stroke: any) => ({
+        x: num(stroke.x, 0), y: num(stroke.y, 0), radius: num(stroke.radius, 0.25),
+        weight: clamp(num(stroke.weight, 1), 1, 5)
+      }))
+    : [];
+  const legacyStrokes = Object.entries(L.risk && typeof L.risk === 'object' ? L.risk : {})
+    .flatMap(([key, value]) => {
+      const match = /^(\d+)_(\d+)$/.exec(key);
+      if (!match || typeof value !== 'number' || !Number.isFinite(value)) return [];
+      const row = Number(match[1]), col = Number(match[2]), gridM = num(L.gridM ?? L.grid_size, 0.5);
+      return [{ x: (col + 0.5) * gridM, y: (row + 0.5) * gridM, radius: gridM / Math.SQRT2, weight: clamp(value, 1, 5) }];
+    });
   return {
     version: String(L.version ?? '1.0'), name: String(L.name ?? 'Layout'), widthM, heightM,
     gridM: num(L.gridM ?? L.grid_size, 0.5), pixelsPerMeter: num(L.pixelsPerMeter, 68), targetHeight,
-    background: L.background, obstacles, risk: L.risk ?? {}, cameras
+    background: L.background, obstacles, risk: {}, riskStrokes: [...legacyStrokes, ...riskStrokes], cameras
   };
 }
 

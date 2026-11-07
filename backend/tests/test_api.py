@@ -3,7 +3,7 @@ import json
 from fastapi.testclient import TestClient
 
 from backend import main
-from backend.greedy_optimizer import OptiCamGreedy
+from backend.greedy_optimizer import OptiCamGreedy, obstacle_risk_weight, risk_weight_at
 
 client = TestClient(main.app)
 
@@ -50,6 +50,32 @@ def test_optimize_rejects_mismatched_matrices() -> None:
     payload = optimize_payload()
     payload["riskMatrix"] = [[1]]
     assert client.post("/api/v1/optimize", json=payload).status_code == 422
+
+
+def test_continuous_risk_weights_are_validated_and_used_by_api() -> None:
+    assert risk_weight_at(1.75, 5, 1, 2.5) == 3
+    pos = {"type": "pos", "x": 1, "y": 1, "w": 1, "h": 1, "elev": 1.1}
+    assert obstacle_risk_weight((3.5, 1.5), [pos]) == 3.666666666666667
+
+    payload = optimize_payload()
+    payload["riskMatrix"][1][1] = 4.25
+    response = client.post("/api/v1/optimize", json=payload)
+    assert response.status_code == 200
+
+    payload["riskMatrix"][1][1] = 5.1
+    assert client.post("/api/v1/optimize", json=payload).status_code == 422
+
+
+def test_backend_grid_computes_continuous_obstacle_weights_and_last_brush_stroke() -> None:
+    pos = {"type": "pos", "x": 1, "y": 1, "w": 1, "h": 1, "elev": 1.1}
+    strokes = [
+        {"x": 2.5, "y": 1.5, "radius": 0.4, "weight": 1},
+        {"x": 2.5, "y": 1.5, "radius": 0.4, "weight": 4.25},
+    ]
+    optimizer = OptiCamGreedy(4, 3, [pos], risk_strokes=strokes)
+    grid = optimizer.generate_grid(1)
+    assert (2.5, 1.5, 4.25) in grid
+    assert any(x == 3.5 and y == 1.5 and abs(weight - 3.666666666666667) < 1e-12 for x, y, weight in grid)
 
 
 def test_optimize_uses_camera_profiles_and_defaults_missing_profiles() -> None:

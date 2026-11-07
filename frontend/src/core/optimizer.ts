@@ -1,6 +1,6 @@
 import type { Camera, Layout, Weight, Zone } from '../types';
 import { snapAngle, wallAnchors } from './geometry';
-import { blockerObstacles, DORI_FACTOR, doriOf, ppmAt } from './optics';
+import { blockerObstacles, DORI_FACTOR, doriOf, evaluate, ppmAt, riskBand } from './optics';
 
 export const makeCamera = (id: string, x: number, y: number, pan: number): Camera =>
   ({ id, x, y, pan: snapAngle(pan), fov: 85, res: 2560, range: 10, height: 2.4, model: 'Dome IP 4MP (2560px, ống kính 2.8mm)' });
@@ -11,7 +11,7 @@ export const manualFourCorners = (l: Layout): Camera[] => [
   makeCamera('CAM-03', l.widthM, l.heightM, 225), makeCamera('CAM-04', 0, l.heightM, 315)
 ].map((c) => ({ ...c, target: 'Góc tường (đặt thủ công)' }));
 
-const TARGET: Record<Weight, string> = { 5: 'POS & Cửa chính (Vùng Đỏ)', 3: 'Hành lang kệ (Vùng Vàng)', 1: 'Lối đi chung (Vùng Xanh)' };
+const TARGET = { red: 'Vùng trọng yếu', yellow: 'Vùng ưu tiên', green: 'Lối đi chung' } as const;
 const F = (p: number) => DORI_FACTOR[doriOf(p)];
 
 export interface Candidate { cam: Camera; ppm: Float32Array }
@@ -65,12 +65,43 @@ export function greedyPlace(l: Layout, zones: Zone[], K = 3, weighted = true, op
     if (best < 0) break;
     const byW: Record<number, number> = {};
     gainOf(cands[best].ppm, byW);
-    const top = Number(Object.entries(byW).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 1) as Weight;
+    const topWeight = Number(Object.entries(byW).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 1);
     const { cam, ppm } = cands[best];
-    out.push({ ...cam, id: `CAM-0${k}`, target: TARGET[top] });
+    out.push({ ...cam, id: `CAM-0${k}`, target: TARGET[riskBand(topWeight)] });
     for (let j = 0; j < ppm.length; j++) cur[j] = Math.max(cur[j], ppm[j]);
   }
   return out;
+}
+
+export interface MinimumCameraSolution {
+  cameras: Camera[];
+  metTargets: boolean;
+  red: number;
+  yellow: number;
+}
+
+/** Optimize up to the available camera count, then retain the shortest prefix meeting both KPIs. */
+export function minimumCamerasForTargets(
+  l: Layout,
+  zones: Zone[],
+  cameraProfiles: Camera[],
+  redTarget = 95,
+  yellowTarget = 80
+): MinimumCameraSolution {
+  const optimized = greedyPlace(l, zones, cameraProfiles.length, true, {
+    cameraProfiles: cameraProfiles.map(({ fov, res, range, height, model }) => ({ fov, res, range, height, model }))
+  });
+  let best = optimized;
+  let bestScore = evaluate({ ...l, cameras: best }, zones).score;
+  for (let count = 1; count <= optimized.length; count++) {
+    const cameras = optimized.slice(0, count);
+    const score = evaluate({ ...l, cameras }, zones).score;
+    if (score.red >= redTarget && score.yellow >= yellowTarget) {
+      return { cameras, metTargets: true, red: score.red, yellow: score.yellow };
+    }
+    if (count === optimized.length) bestScore = score;
+  }
+  return { cameras: best, metTargets: false, red: bestScore.red, yellow: bestScore.yellow };
 }
 
 /**

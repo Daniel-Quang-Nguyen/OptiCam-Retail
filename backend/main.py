@@ -51,9 +51,29 @@ class Obstacle(BaseModel):
     h: float = Field(default=1, gt=0)
     elev: float = 1.8
     angle: float = 0
+    riskWmax: float | None = Field(default=None, ge=1, le=5)
+    riskR0: float | None = Field(default=None, ge=0)
+    riskR: float | None = Field(default=None, gt=0)
 
     class Config:
         extra = "allow"
+
+    @root_validator
+    def validate_risk_profile(cls, values: dict[str, Any]) -> dict[str, Any]:
+        obstacle_type = values.get("type", "shelf")
+        default_radius = 2.0 if obstacle_type == "shelf" else 2.5
+        r0 = values.get("riskR0")
+        radius = values.get("riskR")
+        if (radius if radius is not None else default_radius) <= (r0 if r0 is not None else 1.0):
+            raise ValueError("riskR must be greater than riskR0")
+        return values
+
+
+class RiskStroke(BaseModel):
+    x: float
+    y: float
+    radius: float = Field(gt=0)
+    weight: float = Field(ge=1, le=5)
 
 
 class LayoutData(BaseModel):
@@ -64,7 +84,8 @@ class LayoutData(BaseModel):
     gridM: float = Field(default=0.5, ge=0.1, le=2)
     targetHeight: float = Field(default=1.6, ge=0.5, le=2)
     obstacles: list[Obstacle] = Field(default_factory=list)
-    risk: dict[str, int] = Field(default_factory=dict)
+    risk: dict[str, float] = Field(default_factory=dict)
+    riskStrokes: list[RiskStroke] = Field(default_factory=list)
     cameras: list[dict[str, Any]] = Field(default_factory=list)
 
     class Config:
@@ -101,7 +122,7 @@ class OptimizeRequest(BaseModel):
     cameraProfiles: list[CameraProfile] = Field(default_factory=list)
     layout: LayoutData
     grid: GridData
-    riskMatrix: list[list[int]]
+    riskMatrix: list[list[float]]
     blockedMatrix: list[list[int]]
 
     @root_validator
@@ -121,8 +142,8 @@ class OptimizeRequest(BaseModel):
             raise ValueError("riskMatrix dimensions must match grid")
         if len(blocked_matrix) != rows or any(len(row) != cols for row in blocked_matrix):
             raise ValueError("blockedMatrix dimensions must match grid")
-        if any(value not in (1, 3, 5) for row in risk_matrix for value in row):
-            raise ValueError("riskMatrix values must be 1, 3, or 5")
+        if any(not 1 <= value <= 5 for row in risk_matrix for value in row):
+            raise ValueError("riskMatrix values must be between 1 and 5")
         if any(value not in (0, 1) for row in blocked_matrix for value in row):
             raise ValueError("blockedMatrix values must be 0 or 1")
         return values
@@ -157,7 +178,10 @@ def optimize_layout(request: OptimizeRequest) -> dict[str, Any]:
         .dict(exclude_none=True)
         for index in range(request.cameraBudgetK)
     ]
-    optimizer = OptiCamGreedy(layout.widthM, layout.heightM, layout.obstacles, layout.targetHeight)
+    optimizer = OptiCamGreedy(
+        layout.widthM, layout.heightM, layout.obstacles, layout.targetHeight,
+        layout.riskStrokes, layout.risk
+    )
     cells = optimizer.generate_grid(grid, request.riskMatrix, request.blockedMatrix)
 
     anchor_step = max(grid, 0.5)

@@ -16,7 +16,7 @@ export function toApiPayload(l: Layout, zones: Zone[], cameraBudgetK: number, ca
     cameraProfiles: cameraProfiles?.map(({ fov, res, range, height, model }) => ({ fov, res, range, height, model })),
     layout: { version: l.version, name: l.name, widthM: l.widthM, heightM: l.heightM, gridM: l.gridM, targetHeight: l.targetHeight, obstacles: l.obstacles },
     grid: { rows, cols, cellSizeM: l.gridM },
-    riskMatrix,      // [row][col] ∈ {1, 3, 5}  (đã gồm cọ tô tay)
+    riskMatrix,      // [row][col] ∈ [1, 5], continuous weights including manual strokes
     blockedMatrix    // [row][col] ∈ {0, 1}     (1 = ô bị kệ/POS chiếm)
   };
 }

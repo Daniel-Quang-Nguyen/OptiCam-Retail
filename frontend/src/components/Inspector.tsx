@@ -3,11 +3,13 @@ import { PERSON_TARGETS, type Camera, type Layout, type Obstacle, type TargetHei
 import type { Selection, Segment } from './canvas/shared';
 import { AREA_MAX, AREA_MIN } from '../core/editor';
 import { CAMERA_QUALITY_PRESETS, cameraQualityForResolution, type CameraQualityId } from '../core/camera';
+import { RISK_DEFAULTS } from '../core/optics';
 
 interface Props {
   layout: Layout; sel: Selection; measure: Segment;
   onTargetHeight: (height: TargetHeight) => void;
-  onObs: (id: string, patch: Partial<Pick<Obstacle, 'label' | 'elev' | 'w' | 'h'>>) => void;
+  onGrid: (gridM: number) => void;
+  onObs: (id: string, patch: Partial<Pick<Obstacle, 'label' | 'elev' | 'w' | 'h' | 'riskWmax' | 'riskR0' | 'riskR'>>) => void;
   onCam: (id: string, patch: Partial<Pick<Camera, 'fov' | 'res' | 'height' | 'pan' | 'range' | 'model'>>) => void;
   onRoom: (w: number, h: number) => void; onScale: (ppm: number) => void; onCalibrate: (realM: number) => void;
 }
@@ -16,7 +18,7 @@ const Num = ({ label, value, min, max, step, onChange }: { label: string; value:
 );
 
 /** Thuộc tính vật thể đang chọn · kích thước tường bao · tỷ lệ px/m · hiệu chuẩn ảnh nền bằng công cụ đo. */
-export function Inspector({ layout: L, sel, measure, onTargetHeight, onObs, onCam, onRoom, onScale, onCalibrate }: Props) {
+export function Inspector({ layout: L, sel, measure, onTargetHeight, onGrid, onObs, onCam, onRoom, onScale, onCalibrate }: Props) {
   const obs = sel?.kind === 'obs' ? L.obstacles.find((o) => o.id === sel.id) : undefined;
   const cam = sel?.kind === 'cam' ? L.cameras.find((c) => c.id === sel.id) : undefined;
   const area = L.widthM * L.heightM, mLen = measure ? Math.hypot(measure.b[0] - measure.a[0], measure.b[1] - measure.a[1]) : 0;
@@ -36,13 +38,27 @@ export function Inspector({ layout: L, sel, measure, onTargetHeight, onObs, onCa
       <div className="row">
         <Num label="Rộng (m)" value={L.widthM} min={3} max={40} step={0.5} onChange={(v) => onRoom(v, L.heightM)} />
         <Num label="Dài (m)" value={L.heightM} min={3} max={40} step={0.5} onChange={(v) => onRoom(L.widthM, v)} />
+        <Num label="Kích thước ô (m)" value={L.gridM} min={0.1} max={2} step={0.05} onChange={onGrid} />
         <Num label="px / m" value={L.pixelsPerMeter} min={30} max={120} step={5} onChange={onScale} />
       </div>
-      <p className={area < AREA_MIN || area > AREA_MAX ? 'fail small' : 'muted small'}>{area} m² {area < AREA_MIN || area > AREA_MAX ? `— ngoài phạm vi ${AREA_MIN}–${AREA_MAX} m² của đề tài` : `(1 m = ${L.pixelsPerMeter} px, 1 ô 0.5 m = ${L.pixelsPerMeter / 2} px)`}</p>
+      <p className={area < AREA_MIN || area > AREA_MAX ? 'fail small' : 'muted small'}>{area} m² {area < AREA_MIN || area > AREA_MAX ? `— ngoài phạm vi ${AREA_MIN}–${AREA_MAX} m² của đề tài` : `(1 m = ${L.pixelsPerMeter} px, 1 ô = ${L.gridM} m)`}</p>
+      <p className="muted small">Để lấy mẫu vùng giảm dần đủ mịn, nên dùng gridM ≤ (R − r₀)/3; cọ rủi ro lưu theo tọa độ thực nên không lệch khi đổi lưới.</p>
       {L.background && measure && mLen > 0.05 && (
         <CalibrateRow measured={mLen} onApply={onCalibrate} />
       )}
       {obs && <>
+        {(() => {
+          const defaults = RISK_DEFAULTS[obs.type];
+          return <>
+        <h3>Ưu tiên vùng quanh vật thể</h3>
+        <div className="row">
+          <Num label="W đỉnh" value={obs.riskWmax ?? defaults.wmax} min={1} max={5} step={0.1} onChange={(v) => onObs(obs.id, { riskWmax: v })} />
+          <Num label="r₀ giữ nguyên (m)" value={obs.riskR0 ?? defaults.r0} min={0} max={19.9} step={0.1} onChange={(v) => onObs(obs.id, { riskR0: v })} />
+          <Num label="R tắt dần (m)" value={obs.riskR ?? defaults.radius} min={(obs.riskR0 ?? defaults.r0) + 0.1} max={20} step={0.1} onChange={(v) => onObs(obs.id, { riskR: v })} />
+        </div>
+        <p className="muted small">W giữ ở mức đỉnh đến r₀, sau đó giảm tuyến tính về 1 tại R.</p>
+        </>;
+        })()}
         <h3>Vật cản: {obs.label}</h3>
         <label className="field">Tên<input value={obs.label} onChange={(e) => onObs(obs.id, { label: e.target.value })} /></label>
         <div className="row">
@@ -50,7 +66,7 @@ export function Inspector({ layout: L, sel, measure, onTargetHeight, onObs, onCa
           <Num label="Rộng (m)" value={obs.h} min={0.2} max={20} step={0.1} onChange={(v) => onObs(obs.id, { h: v })} />
           <Num label="Cao (m)" value={obs.elev} min={0.1} max={3} step={0.1} onChange={(v) => onObs(obs.id, { elev: v })} />
         </div>
-        <p className="muted small">Kệ ≥ 1.6 m sẽ chắn tầm nhìn khuôn mặt; POS (1.1 m) và cửa thì không.</p>
+        <p className="muted small">Chiều cao vật thể được xét trên đường ngắm 3D tới điểm mục tiêu.</p>
       </>}
       {cam && <>
         <h3>Camera: {cam.id}</h3>

@@ -20,6 +20,11 @@ table { width:100%; border-collapse:collapse; font-size:13px; } th, td { padding
 .pass { color:var(--pass); font-weight:700; } .fail { color:var(--fail); font-weight:700; }
 .muted { color:var(--muted); } .small { font-size:12px; } .wrap { flex-wrap:wrap; }
 .legend { display:flex; gap:14px; margin-top:8px; flex-wrap:wrap; font-size:12px; } .legend i { display:inline-block; width:12px; height:12px; margin-right:5px; border:1px solid var(--line); vertical-align:-1px; }
+.risk-legend { width:min(100%, 380px); display:grid; gap:3px; font-size:12px; }
+.risk-legend-title { font-weight:600; }
+.risk-gradient { height:14px; border:1px solid rgba(15,23,42,.35); border-radius:3px; background:linear-gradient(to right, #2563eb 0%, #14b8a6 25%, #facc15 50%, #f97316 75%, #dc2626 100%); }
+.risk-ticks, .risk-bands { display:flex; justify-content:space-between; }
+.risk-bands { gap:8px; justify-content:flex-start; flex-wrap:wrap; color:var(--muted); font-size:11px; }
 .modal { position:fixed; inset:0; background:rgba(15,23,42,.6); display:grid; place-items:center; padding:16px; z-index:20; }
 .modal-box { background:var(--card); border-radius:10px; padding:20px; max-width:900px; width:100%; max-height:90vh; overflow:auto; } .scroll-x { overflow-x:auto; }
 .toast { position:fixed; top:14px; left:50%; transform:translateX(-50%); background:var(--pass); color:#fff; padding:8px 16px; border-radius:6px; z-index:30; }

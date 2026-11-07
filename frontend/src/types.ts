@@ -1,5 +1,5 @@
 export type ObsType = 'shelf' | 'pos' | 'entrance';
-export type Weight = 1 | 3 | 5; // Xanh / Vàng / Đỏ
+export type Weight = number;
 export type Dori = 'identification' | 'recognition' | 'observation' | 'detection' | 'blind';
 export const PERSON_TARGETS = [
   { height: 1.6, label: 'Mặt' },
@@ -14,6 +14,9 @@ export interface Obstacle {
   x: number; y: number; w: number; h: number;
   elev: number;   // cao độ (m): kệ 1.8, POS 1.1, cửa 2.4
   angle: number;  // độ, bước 15
+  riskWmax?: number;
+  riskR0?: number;
+  riskR?: number;
 }
 
 export interface Camera {
@@ -39,13 +42,21 @@ export type PersonRegion = typeof PERSON_REGIONS[number];
 
 export interface Background { dataUrl: string; widthM: number; opacity: number; visible: boolean }
 
+export interface RiskStroke {
+  x: number;
+  y: number;
+  radius: number;
+  weight: Weight;
+}
+
 export interface Layout {
   version: string; name: string;
   widthM: number; heightM: number; gridM: number; pixelsPerMeter: number;
   targetHeight: TargetHeight;
   background?: Background;
   obstacles: Obstacle[];
-  risk: Record<string, Weight>;   // Manual Risk Brush, key "row_col"
+  risk: Record<string, Weight>;   // Legacy per-cell overrides, key "row_col"
+  riskStrokes: RiskStroke[];
   cameras: Camera[];
 }
 
@@ -54,6 +65,7 @@ export interface Cell extends Zone { ppm: number; dori: Dori }
 
 export interface Score {
   red: number; yellow: number;   // % ô đạt chuẩn DORI của vùng
+  redMinPpm: number;
   weighted: number;              // Σ W × Score_DORI
   cams: number; ms: number;
 }

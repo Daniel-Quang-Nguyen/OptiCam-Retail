@@ -6,14 +6,14 @@ import { Inspector } from './components/Inspector';
 import { BomModal } from './components/BomModal';
 import { Scorecard } from './components/Scorecard';
 import { PRESETS, withManualCams } from './data/presets';
-import { buildZones, evaluate } from './core/optics';
-import { greedyPlace, makeCamera, manualFourCorners } from './core/optimizer';
+import { buildZones, evaluate, RISK_DEFAULTS } from './core/optics';
+import { greedyPlace, makeCamera, manualFourCorners, minimumCamerasForTargets } from './core/optimizer';
 import { requestOptimize } from './core/api';
 import { addObstacle, removeObstacle, resizeObstacle, resizeRoom } from './core/editor';
 import { exportBundle, download, parseBundle } from './core/io';
 import { placeObstacle, satCollide, obsPoly, snapAngle, wallAnchors } from './core/geometry';
 import { canPlacePerson } from './core/person';
-import type { Camera, Layout, Obstacle, ObsType, Person, Score, Weight } from './types';
+import type { Camera, Layout, Obstacle, ObsType, Person, RiskStroke, Score, Weight } from './types';
 
 const MAX_CAMS = 20;
 
@@ -29,7 +29,7 @@ export default function App() {
   const [tool, setTool] = useState<Tool>('select'), [measure, setMeasure] = useState<Segment>(null);
   const stageRef = useRef<Konva.Stage>(null), drawMsRef = useRef(0);
 
-  const zones = useMemo(() => buildZones(layout), [layout.obstacles, layout.risk, layout.widthM, layout.heightM, layout.gridM]);
+  const zones = useMemo(() => buildZones(layout), [layout.obstacles, layout.risk, layout.riskStrokes, layout.widthM, layout.heightM, layout.gridM]);
   const { cells, score } = useMemo(() => evaluate(layout, zones), [layout.cameras, zones, layout.obstacles, layout.targetHeight]);
   const manual = useMemo(() => evaluate({ ...layout, cameras: manualFourCorners(layout) }, zones).score, [zones, layout.obstacles, layout.targetHeight]);
 
@@ -41,7 +41,7 @@ export default function App() {
   const updateCamera = useCallback((c: Camera) => setLayout((l) => ({ ...l, cameras: l.cameras.map((x) => (x.id === c.id ? c : x)) })), []);
   const updateObstacle = useCallback((o: Obstacle) => setLayout((l) => ({ ...l, obstacles: l.obstacles.map((x) => (x.id === o.id ? o : x)) })), []);
   const updatePerson = useCallback((person: Person) => setPeople((current) => current.map((item) => item.id === person.id ? person : item)), []);
-  const paint = useCallback((r: number, c: number, w: Weight) => setLayout((l) => (l.risk[`${r}_${c}`] === w ? l : { ...l, risk: { ...l.risk, [`${r}_${c}`]: w } })), []);
+  const paint = useCallback((strokes: RiskStroke[]) => setLayout((l) => ({ ...l, riskStrokes: [...l.riskStrokes, ...strokes] })), []);
   const select = useCallback((s: Selection) => setSel(s), []);
 
   const addObs = (t: ObsType) => {
@@ -49,10 +49,17 @@ export default function App() {
     if (!r) return flash('Không còn chỗ trống cho khối này');
     setLayout(r); setSel({ kind: 'obs', id: r.obstacles[r.obstacles.length - 1].id }); setTool('select');
   };
-  const editObstacle = (id: string, pt: Partial<Pick<Obstacle, 'label' | 'elev' | 'w' | 'h'>>) =>
+  const editObstacle = (id: string, pt: Partial<Pick<Obstacle, 'label' | 'elev' | 'w' | 'h' | 'riskWmax' | 'riskR0' | 'riskR'>>) =>
     setLayout((l) => {
       const o = l.obstacles.find((x) => x.id === id); if (!o) return l;
-      const { w, h, ...rest } = pt, l2 = { ...l, obstacles: l.obstacles.map((x) => (x.id === id ? { ...x, ...rest } : x)) };
+      const { w, h, ...rest } = pt;
+      if (pt.riskWmax !== undefined) rest.riskWmax = Math.max(1, Math.min(5, pt.riskWmax));
+      if (pt.riskR0 !== undefined) {
+        rest.riskR0 = Math.max(0, pt.riskR0);
+        if ((pt.riskR ?? o.riskR ?? RISK_DEFAULTS[o.type].radius) <= rest.riskR0) rest.riskR = rest.riskR0 + 0.1;
+      }
+      if (pt.riskR !== undefined) rest.riskR = Math.max((pt.riskR0 ?? o.riskR0 ?? RISK_DEFAULTS[o.type].r0) + 0.1, pt.riskR);
+      const l2 = { ...l, obstacles: l.obstacles.map((x) => (x.id === id ? { ...x, ...rest } : x)) };
       return w !== undefined || h !== undefined ? resizeObstacle(l2, id, w ?? o.w, h ?? o.h) : l2;
     });
   const editCamera = (id: string, pt: Partial<Pick<Camera, 'fov' | 'res' | 'height' | 'pan' | 'range' | 'model'>>) =>
@@ -121,6 +128,19 @@ export default function App() {
     setLayout((l) => ({ ...l, cameras })); setSolveMs(t1 - t0);
     requestAnimationFrame(() => requestAnimationFrame(() => { setRenderMs(performance.now() - t1); flash(`Auto-Optimize xong (${cameras.length}/${count} camera · ${source === 'api' ? 'Backend API' : 'Greedy trên trình duyệt'})`); }));
   };
+  const minimizeCameras = () => {
+    const t0 = performance.now();
+    const cameraProfiles = cameraProfilesFor(layout.cameras.length);
+    const result = minimumCamerasForTargets(layout, zones, cameraProfiles);
+    const t1 = performance.now();
+    setLayout((current) => ({ ...current, cameras: result.cameras }));
+    setSolveMs(t1 - t0);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      setRenderMs(performance.now() - t1);
+      const status = result.metTargets ? 'đạt KPI' : 'chưa đạt đủ KPI';
+      flash(`${status}: giữ ${result.cameras.length}/${cameraProfiles.length} camera · Đỏ ${result.red}% · Vàng ${result.yellow}%`);
+    }));
+  };
   const runUnweighted = () => {
     const count = layout.cameras.length;
     const cameraProfiles = cameraProfilesFor(count).map(({ fov, res, range, height, model }) => ({ fov, res, range, height, model }));
@@ -180,6 +200,9 @@ export default function App() {
           <button onClick={() => autoOptimize(layout.cameras.length)} disabled={layout.cameras.length < 1 || layout.cameras.length > MAX_CAMS} title={layout.cameras.length > MAX_CAMS ? `Tối đa ${MAX_CAMS} camera mỗi lần tối ưu` : undefined}>
             Tối ưu theo số cam hiện có ({layout.cameras.length})
           </button>
+          <button onClick={minimizeCameras} disabled={layout.cameras.length < 1 || layout.cameras.length > MAX_CAMS} title="Tìm số camera ít nhất đạt Đỏ ≥95% và Vàng ≥80%; giữ cấu hình camera đã nhập">
+            Tìm số cam tối thiểu (Đỏ 95% · Vàng 80%)
+          </button>
           <button onClick={() => setLayout((l) => ({ ...l, cameras: manualFourCorners(l) }))}>Manual 4-Corner Setup</button>
         </div>
       </header>
@@ -189,8 +212,8 @@ export default function App() {
         {(['dori', 'risk', 'off'] as ViewMode[]).map((v) => <button key={v} className={view === v ? 'on' : ''} onClick={() => setView(v)}>{{ dori: 'Heatmap DORI', risk: 'Ma trận rủi ro W', off: 'Tắt' }[v]}</button>)}
         <span>Cọ rủi ro</span>
         <button className={brush === null ? 'on' : ''} onClick={() => { setBrush(null); setTool('select'); }}>Kéo thả</button>
-        {([5, 3, 1] as Weight[]).map((w) => <button key={w} className={brush === w ? 'on' : ''} style={{ borderColor: RISK_COLOR[w].replace(/[\d.]+\)$/, '1)') }} onClick={() => { setBrush(w); setTool('select'); }}>W = {w}.0</button>)}
-        <button onClick={() => patch({ risk: {} })}>Xoá cọ</button>
+        {([5, 3, 1] as Weight[]).map((w) => <button key={w} className={brush === w ? 'on' : ''} style={{ borderColor: RISK_COLOR[w >= 4 ? 'red' : w >= 2 ? 'yellow' : 'green'].replace(/[\d.]+\)$/, '1)') }} onClick={() => { setBrush(w); setTool('select'); }}>W = {w}.0</button>)}
+        <button onClick={() => patch({ risk: {}, riskStrokes: [] })}>Xoá cọ</button>
         <span className="sep" />
         <button className={grid ? 'on' : ''} onClick={() => setGrid(!grid)}>Lưới</button>
         <button className={anchors ? 'on' : ''} onClick={() => setAnchors(!anchors)}>Điểm neo</button>
@@ -215,12 +238,17 @@ export default function App() {
             onCamera={updateCamera} onObstacle={updateObstacle} onPaint={paint} onSelect={select} onRotate={rotate} onMeasure={setMeasure} />
           <div className="legend">
             {view === 'dori' && (['identification', 'recognition', 'observation', 'detection', 'blind'] as const).map((k) => <span key={k}><i style={{ background: DORI_COLOR[k] }} />{{ identification: '≥250 PPM', recognition: '≥125', observation: '≥62', detection: '≥25', blind: 'mù / <25' }[k]}</span>)}
-            {view === 'risk' && <><span><i style={{ background: RISK_COLOR[5] }} />Đỏ W=5.0 (≥250 PPM)</span><span><i style={{ background: RISK_COLOR[3] }} />Vàng W=3.0 (≥125)</span><span><i style={{ background: RISK_COLOR[1] }} />Xanh W=1.0 (≥62)</span></>}
+            {view === 'risk' && <div className="risk-legend">
+              <span className="risk-legend-title">W theo từng ô — số hiển thị khi phóng to</span>
+              <div className="risk-gradient" aria-label="Thang màu trọng số từ W bằng 1 đến W bằng 5" />
+              <div className="risk-ticks"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div>
+              <div className="risk-bands"><span>Thấp: W&lt;2</span><span>Vừa: 2≤W&lt;4</span><span>Cao: W≥4</span></div>
+            </div>}
           </div>
         </div>
 
         <aside>
-          <Inspector layout={layout} sel={sel} measure={measure} onTargetHeight={(targetHeight) => patch({ targetHeight })} onObs={editObstacle} onCam={editCamera} onRoom={setRoom} onScale={(v) => patch({ pixelsPerMeter: v })} onCalibrate={calibrate} />
+          <Inspector layout={layout} sel={sel} measure={measure} onTargetHeight={(targetHeight) => patch({ targetHeight })} onGrid={(gridM) => patch({ gridM: Math.max(0.1, Math.min(2, gridM)), risk: {} })} onObs={editObstacle} onCam={editCamera} onRoom={setRoom} onScale={(v) => patch({ pixelsPerMeter: v })} onCalibrate={calibrate} />
           <Scorecard d={{ manual, live: score, unweighted, solveMs, renderMs, heatMs: drawMsRef.current }} />
           <div className="panel">
             <h3>Dự án</h3>

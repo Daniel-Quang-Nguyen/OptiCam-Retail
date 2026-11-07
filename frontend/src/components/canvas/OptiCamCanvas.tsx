@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Layer, Line, Stage, Text } from 'react-konva';
 import type Konva from 'konva';
-import type { Camera, Cell, Layout, Obstacle, Person, Weight } from '../../types';
+import type { Camera, Cell, Layout, Obstacle, Person, RiskStroke, Weight } from '../../types';
 import { round2, wallAnchors } from '../../core/geometry';
 import { assessPersonAt } from '../../core/optics';
 import { canPlacePerson } from '../../core/person';
@@ -16,7 +16,7 @@ import { PAD, type Segment, type Selection, type Tool, type ViewMode } from './s
 export interface CanvasProps {
   layout: Layout; cells: Cell[]; view: ViewMode; tool: Tool; brush: Weight | null; selected: Selection;
   showGrid: boolean; showAnchors: boolean; measure: Segment; stageRef: React.RefObject<Konva.Stage>; drawMsRef: { current: number };
-  onCamera: (c: Camera) => void; onObstacle: (o: Obstacle) => void; onPaint: (r: number, c: number, w: Weight) => void;
+  onCamera: (c: Camera) => void; onObstacle: (o: Obstacle) => void; onPaint: (strokes: RiskStroke[]) => void;
   people: Person[]; onAddPerson: (x: number, y: number) => void; onPerson: (person: Person) => void; onInvalidPerson: () => void;
   onSelect: (s: Selection) => void; onRotate: (dir: 1 | -1) => void; onMeasure: (s: Segment) => void;
 }
@@ -26,6 +26,7 @@ export function OptiCamCanvas(p: CanvasProps) {
   const { layout: L } = p, ppm = L.pixelsPerMeter, cellPx = L.gridM * ppm, cols = Math.round(L.widthM / L.gridM);
   const [hover, setHover] = useState<{ cell: Cell; x: number; y: number } | null>(null);
   const painting = useRef(false), measuring = useRef(false);
+  const lastPaintPoint = useRef<[number, number] | null>(null);
   const anchors = useMemo(() => wallAnchors(L.widthM, L.heightM, L.gridM), [L.widthM, L.heightM, L.gridM]);
   const lock = p.tool === 'measure' || p.brush !== null; // khoá kéo thả khi đang cọ/đo
 
@@ -39,10 +40,29 @@ export function OptiCamCanvas(p: CanvasProps) {
     const c = Math.floor(m[0] / L.gridM), r = Math.floor(m[1] / L.gridM);
     return c < 0 || r < 0 || c >= cols || r * cols + c >= p.cells.length ? null : { r, c, pos, cell: p.cells[r * cols + c] };
   };
+  const paintAt = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (!p.brush) return;
+    const point = meters(e);
+    if (!point || point[0] < 0 || point[1] < 0 || point[0] > L.widthM || point[1] > L.heightM) return;
+    const radius = Math.max(0.05, L.gridM / Math.SQRT2);
+    const previous = lastPaintPoint.current;
+    const distance = previous ? Math.hypot(point[0] - previous[0], point[1] - previous[1]) : 0;
+    const steps = previous ? Math.max(1, Math.ceil(distance / radius)) : 0;
+    const strokes: RiskStroke[] = [];
+    if (!previous) strokes.push({ x: point[0], y: point[1], radius, weight: p.brush });
+    else for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const x = previous[0] + (point[0] - previous[0]) * t;
+      const y = previous[1] + (point[1] - previous[1]) * t;
+      if (x >= 0 && y >= 0 && x <= L.widthM && y <= L.heightM) strokes.push({ x, y, radius, weight: p.brush });
+    }
+    if (strokes.length) p.onPaint(strokes);
+    lastPaintPoint.current = point;
+  };
   const onDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
     if (e.target === e.target.getStage()) p.onSelect(null);
     if (p.tool === 'measure') { const m = meters(e); if (m) { measuring.current = true; p.onMeasure({ a: m, b: m }); } return; }
-    if (p.brush) { painting.current = true; onMove(e); }
+    if (p.brush) { painting.current = true; lastPaintPoint.current = null; paintAt(e); }
   };
   const onClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
     if (p.tool !== 'person' || e.target.findAncestor('.person-node', true)) return;
@@ -55,7 +75,7 @@ export function OptiCamCanvas(p: CanvasProps) {
     const h = cellAt(e);
     setHover(h && { cell: h.cell, x: h.pos.x, y: h.pos.y });
     if (measuring.current && p.measure) { const m = meters(e); if (m) p.onMeasure({ a: p.measure.a, b: m }); }
-    if (h && painting.current && p.brush && !h.cell.solid) p.onPaint(h.r, h.c, p.brush);
+    if (painting.current && p.brush) paintAt(e);
   };
   const m = p.measure, mLen = m ? Math.hypot(m.b[0] - m.a[0], m.b[1] - m.a[1]) : 0;
 
@@ -63,8 +83,8 @@ export function OptiCamCanvas(p: CanvasProps) {
     <div className="stage-wrap" style={{ cursor: p.tool === 'measure' || p.tool === 'person' ? 'crosshair' : p.brush ? 'cell' : 'default' }}>
       <Stage ref={p.stageRef} width={L.widthM * ppm + PAD * 2} height={L.heightM * ppm + PAD * 2}
         onMouseDown={onDown} onMouseMove={onMove} onClick={onClick}
-        onMouseUp={() => { painting.current = false; measuring.current = false; }}
-        onMouseLeave={() => { painting.current = false; measuring.current = false; setHover(null); }}
+        onMouseUp={() => { painting.current = false; measuring.current = false; lastPaintPoint.current = null; }}
+        onMouseLeave={() => { painting.current = false; measuring.current = false; lastPaintPoint.current = null; setHover(null); }}
         onWheel={(e) => { e.evt.preventDefault(); p.onRotate(e.evt.deltaY < 0 ? 1 : -1); }}>
         <BaseGridLayer layout={L} showGrid={p.showGrid} showAnchors={p.showAnchors} anchors={anchors} />
         <HeatmapLayer cells={p.cells} cellPx={cellPx} view={p.view} drawMsRef={p.drawMsRef} />
