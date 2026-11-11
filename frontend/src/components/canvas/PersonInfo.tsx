@@ -33,14 +33,14 @@ export function PersonInfo({ person, readings, left, top, onClose }: Props) {
         <button aria-label="Đóng thông tin người" onClick={onClose}>×</button>
       </header>
       <p className="muted small">DORI tốt nhất từ các camera tại từng điểm trên người</p>
-      <table>
-        <thead><tr><th>Khu vực</th><th>DORI</th><th>PPM</th></tr></thead>
+      <table aria-label={`DORI theo khu vực trên ${person.id}`}>
+        <thead><tr><th scope="col">Khu vực</th><th scope="col">DORI</th><th scope="col">PPM</th></tr></thead>
         <tbody>
           {PERSON_REGIONS.map((region) => {
             const reading = readings.find((item) => item.key === region.key);
             return (
               <tr key={region.key}>
-                <th>{region.label}</th>
+                <th scope="row">{region.label}</th>
                 <td><span className={`dori-badge ${DORI_CLASS[reading?.dori ?? 'blind']}`}>{DORI_LABEL[reading?.dori ?? 'blind']}</span></td>
                 <td>{Math.round(reading?.ppm ?? 0)}</td>
               </tr>

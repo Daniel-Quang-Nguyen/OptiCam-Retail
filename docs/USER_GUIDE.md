@@ -13,6 +13,8 @@ trên trình duyệt.
 - **Inspector:** chỉnh tường bao, tỷ lệ ảnh nền và thông số của vật thể/camera đang chọn.
 - **Live Scorecard:** so sánh 4 camera thủ công, phương án hiện tại và Greedy không trọng số.
 - **BOM:** bảng thiết bị/cáp ước tính; có thể tải CSV.
+- **Hoàn tác/Làm lại:** các thay đổi sơ đồ và hình người được gom theo thao tác; dùng nút hoặc
+  `Ctrl+Z` / `Ctrl+Y` (Mac: `⌘Z` / `⌘Y`). Thay layout, xóa vật thể và xóa cọ sẽ hỏi xác nhận.
 
 ## Các thao tác chính
 
@@ -31,13 +33,16 @@ trên trình duyệt.
    lưu theo vị trí/bán kính thực nên giữ nguyên khi đổi kích thước lưới. Heatmap rủi ro dùng
    chuyển sắc liên tục xanh → lục lam → vàng → cam → đỏ; khi phóng đủ lớn, mỗi ô hiện giá trị
    W thực tế để phân biệt rõ các trọng số thập phân.
-6. Chọn **Auto-Optimize (3 Cameras)** hoặc **Tối ưu theo số cam hiện có** để nhận vị trí đề
-   xuất. Nút **Tìm số cam tối thiểu (Đỏ 95% · Vàng 80%)** lần lượt đánh giá các tiền tố của
+6. Chọn **Tối ưu vị trí · 3 camera**, **Tối ưu vị trí với … camera hiện có** hoặc **Ít camera
+   nhất đạt KPI** để nhận vị trí đề xuất. Chế độ tìm số ít nhất lần lượt đánh giá các tiền tố của
    phương án Greedy, dừng ở số camera ít nhất đạt cả hai KPI. Cấu hình FOV, độ phân giải,
    tầm xa, chiều cao và model được giữ theo thứ tự camera đã nhập; vị trí và hướng được tối ưu
    lại. Nếu không đạt KPI với số camera hiện có, ứng dụng giữ toàn bộ phương án tốt nhất và
    thông báo tỷ lệ thực tế trên Scorecard/toast.
-7. Chọn **Bảng BOM**, **Export JSON**, **Import JSON**, hoặc **PNG** để xem/tải kết quả.
+7. Rê chuột lên ô để xem PPM, DORI, W chính xác, nhóm ưu tiên và vật thể/cọ tạo mức W đó.
+8. Chọn **Bảng BOM**, **Export JSON**, **Import JSON**, hoặc **PNG** để xem/tải kết quả.
+
+Trên màn hình nhỏ, Inspector nằm dưới sơ đồ; có thể cuộn ngang canvas để xem toàn bộ mặt bằng.
 
 ### Thông số camera
 
@@ -53,6 +58,7 @@ trên trình duyệt.
   `(Wmax=3, r0=1 m, R=2 m)`. Chọn vật thể để chỉnh ba giá trị này trong Inspector. W giữ ở
   Wmax tới r0 rồi giảm tuyến tính về 1 tại R; nếu nhiều vùng chồng nhau, lấy W lớn nhất.
   Màu chỉ gom để hiển thị (Đỏ `W≥4`, Vàng `2≤W<4`, Xanh `W<2`), còn Greedy dùng W số thực.
+  W biểu thị mức ưu tiên thiết kế, không phải xác suất xảy ra trộm.
   Cọ thủ công vẫn dùng mức 5/3/1 và ghi đè lên vùng tự động; nét vẽ sau cùng được ưu tiên.
   Có thể chỉnh kích thước ô trong Inspector; nên chọn `gridM ≤ (R-r0)/3` để lấy mẫu vùng
   chuyển tiếp đủ mịn (ví dụ vùng kệ mặc định khuyến nghị lưới không quá khoảng 0,33 m).

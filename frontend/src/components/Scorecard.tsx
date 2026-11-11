@@ -10,9 +10,30 @@ export function Scorecard({ d }: { d: Compare }) {
   );
   return (
     <div className="panel">
-      <h3>Bảng đối chứng (Live Scorecard)</h3>
-      <table>
-        <thead><tr><th></th>{cols.map(([k]) => <th key={k}>{k}</th>)}</tr></thead>
+      <div className="scorecard-heading">
+        <div><span className="eyebrow">PHÂN TÍCH HIỆU SUẤT</span><h3>Hiệu quả phương án</h3></div>
+        <span className="live-indicator"><i /> LIVE</span>
+      </div>
+      <div className="kpi-overview">
+        {([
+          { label: 'Vùng đỏ · ≥250 PPM', value: d.live.red, target: 95 },
+          { label: 'Vùng vàng · ≥125 PPM', value: d.live.yellow, target: 80 }
+        ]).map(({ label, value, target }) => (
+          <div className="kpi-tile" key={label}>
+            <div className="kpi-label">{label}<span>Mục tiêu {target}%</span></div>
+            <div className="kpi-value-row">
+              <strong className={ok(value, target)}>{value}<small>%</small></strong>
+              <span className={`kpi-state ${ok(value, target)}`}>{value >= target ? 'ĐẠT' : 'CẦN CẢI THIỆN'}</span>
+            </div>
+            <div className="kpi-track" role="progressbar" aria-label={label} aria-valuenow={value} aria-valuemin={0} aria-valuemax={100} aria-valuetext={`${value}% · mục tiêu ${target}%`}>
+              <span className={ok(value, target)} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
+              <i style={{ left: `${target}%` }} />
+            </div>
+          </div>
+        ))}
+      </div>
+      <table aria-label="So sánh các chỉ số hiệu quả phương án">
+        <thead><tr><th scope="col" aria-label="Chỉ số"></th>{cols.map(([k]) => <th key={k} scope="col">{k}</th>)}</tr></thead>
         <tbody>
           {row('Vùng Đỏ ≥ 250 PPM (KPI ≥ 95%)', (s) => `${s.red}%`, (s) => ok(s.red, 95))}
           {row('Hành lang ≥ 125 PPM (KPI ≥ 80%)', (s) => `${s.yellow}%`, (s) => ok(s.yellow, 80))}

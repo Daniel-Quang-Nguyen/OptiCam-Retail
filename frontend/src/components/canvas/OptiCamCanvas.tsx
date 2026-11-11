@@ -2,8 +2,8 @@ import { useMemo, useRef, useState } from 'react';
 import { Layer, Line, Stage, Text } from 'react-konva';
 import type Konva from 'konva';
 import type { Camera, Cell, Layout, Obstacle, Person, RiskStroke, Weight } from '../../types';
-import { round2, wallAnchors } from '../../core/geometry';
-import { assessPersonAt } from '../../core/optics';
+import { distToObs, round2, wallAnchors } from '../../core/geometry';
+import { assessPersonAt, obstacleRiskWmax, riskWeightAt, RISK_DEFAULTS } from '../../core/optics';
 import { canPlacePerson } from '../../core/person';
 import { BaseGridLayer } from './BaseGridLayer';
 import { CameraNode } from './CameraNode';
@@ -24,7 +24,10 @@ export interface CanvasProps {
 /** Ghép 4 Konva Layer + công cụ cọ rủi ro, đo khoảng cách, tooltip PPM. */
 export function OptiCamCanvas(p: CanvasProps) {
   const { layout: L } = p, ppm = L.pixelsPerMeter, cellPx = L.gridM * ppm, cols = Math.round(L.widthM / L.gridM);
-  const [hover, setHover] = useState<{ cell: Cell; x: number; y: number } | null>(null);
+  const [hover, setHover] = useState<{
+    cell: Cell; x: number; y: number;
+    source: string; distance: number | null;
+  } | null>(null);
   const painting = useRef(false), measuring = useRef(false);
   const lastPaintPoint = useRef<[number, number] | null>(null);
   const anchors = useMemo(() => wallAnchors(L.widthM, L.heightM, L.gridM), [L.widthM, L.heightM, L.gridM]);
@@ -73,14 +76,41 @@ export function OptiCamCanvas(p: CanvasProps) {
   };
   const onMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
     const h = cellAt(e);
-    setHover(h && { cell: h.cell, x: h.pos.x, y: h.pos.y });
+    if (h) {
+      const activeStroke = [...L.riskStrokes].reverse().find((stroke) =>
+        Math.hypot(h.cell.cx - stroke.x, h.cell.cy - stroke.y) <= stroke.radius
+      );
+      let source = activeStroke ? 'Cọ thủ công' : 'Trọng số nền';
+      let distance: number | null = null;
+      if (!activeStroke) {
+        let contribution = 1;
+        for (const obstacle of L.obstacles) {
+          const defaults = RISK_DEFAULTS[obstacle.type];
+          const obstacleDistance = distToObs(h.cell.cx, h.cell.cy, obstacle);
+          const weight = riskWeightAt(
+            obstacleDistance,
+            obstacleRiskWmax(obstacle),
+            obstacle.riskR0 ?? defaults.r0,
+            obstacle.riskR ?? defaults.radius
+          );
+          if (weight > contribution) {
+            contribution = weight;
+            source = obstacle.label;
+            distance = obstacleDistance;
+          }
+        }
+      }
+      setHover({ cell: h.cell, x: h.pos.x, y: h.pos.y, source, distance });
+    } else {
+      setHover(null);
+    }
     if (measuring.current && p.measure) { const m = meters(e); if (m) p.onMeasure({ a: p.measure.a, b: m }); }
     if (painting.current && p.brush) paintAt(e);
   };
   const m = p.measure, mLen = m ? Math.hypot(m.b[0] - m.a[0], m.b[1] - m.a[1]) : 0;
 
   return (
-    <div className="stage-wrap" style={{ cursor: p.tool === 'measure' || p.tool === 'person' ? 'crosshair' : p.brush ? 'cell' : 'default' }}>
+    <div className="stage-wrap" aria-label="Sơ đồ bố trí camera và mặt bằng cửa hàng" style={{ cursor: p.tool === 'measure' || p.tool === 'person' ? 'crosshair' : p.brush ? 'cell' : 'default' }}>
       <Stage ref={p.stageRef} width={L.widthM * ppm + PAD * 2} height={L.heightM * ppm + PAD * 2}
         onMouseDown={onDown} onMouseMove={onMove} onClick={onClick}
         onMouseUp={() => { painting.current = false; measuring.current = false; lastPaintPoint.current = null; }}
@@ -113,8 +143,11 @@ export function OptiCamCanvas(p: CanvasProps) {
         </Layer>
       </Stage>
       {hover && !hover.cell.solid && p.tool === 'select' && (
-        <div className="tip" style={{ left: hover.x + 14, top: hover.y + 14 }}>
-          <b>{Math.round(hover.cell.ppm)} PPM</b> · {hover.cell.dori}<br />Ô ({hover.cell.r}, {hover.cell.c}) · W = {hover.cell.w.toFixed(1)}
+        <div className="tip" role="tooltip" style={{ left: hover.x + 14, top: hover.y + 14 }}>
+          <b>{Math.round(hover.cell.ppm)} PPM</b> · {hover.cell.dori}<br />
+          Ô ({hover.cell.r}, {hover.cell.c}) · W ưu tiên = {hover.cell.w.toFixed(2)}<br />
+          Mức {hover.cell.w >= 4 ? 'cao' : hover.cell.w >= 2 ? 'vừa' : 'thấp'} · {hover.source}
+          {hover.distance !== null && <> · cách {hover.distance.toFixed(2)} m</>}
         </div>
       )}
       {p.selected?.kind === 'person' && (() => {
