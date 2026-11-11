@@ -51,6 +51,7 @@ class Obstacle(BaseModel):
     h: float = Field(default=1, gt=0)
     elev: float = 1.8
     angle: float = 0
+    riskCategory: Literal["high", "standard", "bulky", "custom"] | None = None
     riskWmax: float | None = Field(default=None, ge=1, le=5)
     riskR0: float | None = Field(default=None, ge=0)
     riskR: float | None = Field(default=None, gt=0)

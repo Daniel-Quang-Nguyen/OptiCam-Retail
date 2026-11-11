@@ -5,7 +5,7 @@ import { fromApiResponse, toApiPayload } from './api';
 import { normalizeLayout } from './io';
 import { riskColor } from '../components/canvas/shared';
 import { obsPoly, satCollide } from './geometry';
-import { buildZones } from './optics';
+import { buildZones, SHELF_RISK_PROFILES } from './optics';
 import { canPlacePerson } from './person';
 import { cameraQualityForResolution, CAMERA_QUALITY_PRESETS } from './camera';
 
@@ -39,6 +39,25 @@ describe('Editor', () => {
   });
 });
 describe('API adapter', () => {
+  it('normalizes shelf CRAVED categories, defaults new profiles, and preserves custom Wmax', () => {
+    const layout = normalizeLayout({
+      widthM: 14, heightM: 4, gridM: 0.5, cameras: [], obstacles: [
+        { type: 'shelf', x: 1, y: 1, w: 0.5, h: 0.5 },
+        { type: 'shelf', x: 6, y: 1, w: 0.5, h: 0.5, riskCategory: 'high' },
+        { type: 'shelf', x: 11, y: 1, w: 0.5, h: 0.5, riskWmax: 4.8 }
+      ]
+    });
+    expect(layout.obstacles.map(({ riskCategory, riskWmax }) => [riskCategory, riskWmax])).toEqual([
+      ['standard', SHELF_RISK_PROFILES.standard.wmax],
+      ['high', SHELF_RISK_PROFILES.high.wmax],
+      ['custom', 4.8]
+    ]);
+    const zones = buildZones(layout);
+    for (const [x, weight] of [[1.75, 3], [6.75, 4.5], [11.75, 4.8]] as const) {
+      expect(zones.find((zone) => Math.abs(zone.cx - x) < 1e-9 && Math.abs(zone.cy - 1.25) < 1e-9)?.w).toBe(weight);
+    }
+  });
+
   it('payload có ma trận rủi ro đúng kích thước', () => {
     const l = withManualCams(PRESETS[0]), p = toApiPayload(l, buildZones(l), 3);
     expect(p.riskMatrix).toHaveLength(12); expect(p.riskMatrix[0]).toHaveLength(20);

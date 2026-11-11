@@ -1,20 +1,65 @@
-import { useState } from 'react';
-import { PERSON_TARGETS, type Camera, type Layout, type Obstacle, type TargetHeight } from '../types';
+import { useEffect, useRef, useState } from 'react';
+import { PERSON_TARGETS, type Camera, type Layout, type Obstacle, type ShelfRiskCategory, type TargetHeight } from '../types';
 import type { Selection, Segment } from './canvas/shared';
 import { AREA_MAX, AREA_MIN } from '../core/editor';
 import { CAMERA_QUALITY_PRESETS, cameraQualityForResolution, type CameraQualityId } from '../core/camera';
-import { RISK_DEFAULTS } from '../core/optics';
+import { RISK_DEFAULTS, SHELF_RISK_PROFILES } from '../core/optics';
 
 interface Props {
   layout: Layout; sel: Selection; measure: Segment;
   onTargetHeight: (height: TargetHeight) => void;
   onGrid: (gridM: number) => void;
-  onObs: (id: string, patch: Partial<Pick<Obstacle, 'label' | 'elev' | 'w' | 'h' | 'riskWmax' | 'riskR0' | 'riskR'>>) => void;
+  onObs: (id: string, patch: Partial<Pick<Obstacle, 'label' | 'elev' | 'w' | 'h' | 'riskCategory' | 'riskWmax' | 'riskR0' | 'riskR'>>) => void;
   onCam: (id: string, patch: Partial<Pick<Camera, 'fov' | 'res' | 'height' | 'pan' | 'range' | 'model'>>) => void;
   onRoom: (w: number, h: number) => void; onScale: (ppm: number) => void; onCalibrate: (realM: number) => void;
 }
+function NumberInput({ value, min, max, step, onCommit, style }: {
+  value: number; min: number; max?: number; step: number; onCommit: (value: number) => void; style?: React.CSSProperties;
+}) {
+  const [draft, setDraft] = useState(String(value));
+  const acceptedValue = useRef(value);
+  useEffect(() => {
+    acceptedValue.current = value;
+    setDraft(String(value));
+  }, [value]);
+
+  const restore = () => setDraft(String(acceptedValue.current));
+  const commit = () => {
+    const text = draft.trim();
+    const next = text ? Number(text) : Number.NaN;
+    if (Number.isFinite(next) && next >= min && (max === undefined || next <= max)) {
+      acceptedValue.current = next;
+      onCommit(next);
+      setDraft(String(next));
+    } else {
+      restore();
+    }
+  };
+
+  return <input
+    type="number"
+    value={draft}
+    min={min}
+    max={max}
+    step={step}
+    style={style}
+    onChange={(event) => setDraft(event.target.value)}
+    onKeyDown={(event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        commit();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        restore();
+        event.currentTarget.blur();
+      }
+    }}
+    onBlur={restore}
+  />;
+}
+
 const Num = ({ label, value, min, max, step, onChange }: { label: string; value: number; min: number; max: number; step: number; onChange: (v: number) => void }) => (
-  <label className="field">{label}<input type="number" value={value} min={min} max={max} step={step} onChange={(e) => { const v = parseFloat(e.target.value); if (Number.isFinite(v)) onChange(v); }} /></label>
+  <label className="field">{label}<NumberInput value={value} min={min} max={max} step={step} onCommit={onChange} /></label>
 );
 
 /** Thuộc tính vật thể đang chọn · kích thước tường bao · tỷ lệ px/m · hiệu chuẩn ảnh nền bằng công cụ đo. */
@@ -49,14 +94,33 @@ export function Inspector({ layout: L, sel, measure, onTargetHeight, onGrid, onO
       {obs && <>
         {(() => {
           const defaults = RISK_DEFAULTS[obs.type];
+          const riskCategory = obs.riskCategory ?? 'standard';
           return <>
         <h3>Ưu tiên vùng quanh vật thể</h3>
+        {obs.type === 'shelf' && <>
+          <label className="field">Nhóm hàng (CRAVED)
+            <select value={riskCategory} onChange={(e) => {
+              const category = e.target.value as ShelfRiskCategory;
+              onObs(obs.id, {
+                riskCategory: category,
+                ...(category === 'custom' ? {} : { riskWmax: SHELF_RISK_PROFILES[category].wmax })
+              });
+            }}>
+              {(['high', 'standard', 'bulky', 'custom'] as ShelfRiskCategory[]).map((category) =>
+                <option key={category} value={category}>
+                  {SHELF_RISK_PROFILES[category].label}{category !== 'custom' ? ` (Wmax ${SHELF_RISK_PROFILES[category].wmax})` : ''}
+                </option>
+              )}
+            </select>
+          </label>
+          <p className="muted small">Nhóm CRAVED cao: hàng nhỏ/dễ lấy, giá trị hoặc sức hấp dẫn cao; cồng kềnh: khó che giấu/mang đi. Đây là phân nhóm ưu tiên thiết kế, không phải xác suất trộm cắp.</p>
+        </>}
         <div className="row">
-          <Num label="W đỉnh" value={obs.riskWmax ?? defaults.wmax} min={1} max={5} step={0.1} onChange={(v) => onObs(obs.id, { riskWmax: v })} />
+          <Num label="W đỉnh" value={obs.riskWmax ?? (obs.type === 'shelf' ? SHELF_RISK_PROFILES[riskCategory].wmax : defaults.wmax)} min={1} max={5} step={0.1} onChange={(v) => onObs(obs.id, { riskWmax: v })} />
           <Num label="r₀ giữ nguyên (m)" value={obs.riskR0 ?? defaults.r0} min={0} max={19.9} step={0.1} onChange={(v) => onObs(obs.id, { riskR0: v })} />
           <Num label="R tắt dần (m)" value={obs.riskR ?? defaults.radius} min={(obs.riskR0 ?? defaults.r0) + 0.1} max={20} step={0.1} onChange={(v) => onObs(obs.id, { riskR: v })} />
         </div>
-        <p className="muted small">W giữ ở mức đỉnh đến r₀, sau đó giảm tuyến tính về 1 tại R.</p>
+        <p className="muted small">W giữ ở mức đỉnh đến r₀, sau đó giảm tuyến tính về 1 tại R. Wmax nhóm hàng là giá trị khởi tạo có thể chỉnh, chưa hiệu chuẩn bằng dữ liệu tổn thất của cửa hàng.</p>
         </>;
         })()}
         <h3>Vật cản: {obs.label}</h3>
@@ -109,7 +173,7 @@ function CalibrateRow({ measured, onApply }: { measured: number; onApply: (real:
   return (
     <div className="row wrap">
       <span className="small">Đã đo trên ảnh nền: {measured.toFixed(2)} m →</span>
-      <input type="number" value={real} min={0.1} step={0.1} style={{ width: 80 }} onChange={(e) => setReal(parseFloat(e.target.value) || measured)} /> m thực
+      <NumberInput value={real} min={0.1} step={0.1} style={{ width: 80 }} onCommit={setReal} /> m thực
       <button onClick={() => onApply(real)}>Hiệu chuẩn ảnh nền</button>
     </div>
   );

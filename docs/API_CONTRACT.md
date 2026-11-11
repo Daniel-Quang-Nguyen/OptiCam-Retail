@@ -24,7 +24,7 @@ locally in the browser.
   "gridM": 0.5,
   "targetHeight": 1.6,
   "obstacles": [
-    { "id": "shelf-1", "type": "shelf", "x": 3, "y": 2, "w": 2, "h": 0.6, "elev": 1.8, "angle": 0, "riskWmax": 3, "riskR0": 1, "riskR": 2 }
+    { "id": "shelf-1", "type": "shelf", "x": 3, "y": 2, "w": 2, "h": 0.6, "elev": 1.8, "angle": 0, "riskCategory": "standard", "riskWmax": 3, "riskR0": 1, "riskR": 2 }
   ],
   "riskStrokes": [{ "x": 4.25, "y": 2.75, "radius": 0.25, "weight": 4.5 }],
   "cameras": [
@@ -40,8 +40,11 @@ are generic dictionaries, so camera-level constraints are not validated by Pydan
 `targetHeight` is the person point used by coverage calculations in meters: face `1.6`,
 chest `1.2`, or waist `0.9`; omitted values default to face height.
 Obstacle risk profiles accept `riskWmax` (1–5), `riskR0` (meters), and `riskR` (meters,
-greater than `riskR0`). Default POS/entrance profile is `(5, 1, 2.5)` and shelf profile is
-`(3, 1, 2)`. The UI computes a continuous risk matrix at grid-cell centers using the maximum
+greater than `riskR0`). Shelves additionally accept `riskCategory` in `high`, `standard`,
+`bulky`, or `custom`, with default Wmax values 4.5, 3, 1.8, and 3. Editing Wmax directly marks
+the shelf profile as custom. These category weights are configurable starting assumptions,
+not empirical crime probabilities. Default POS/entrance profile is `(5, 1, 2.5)` and the
+standard shelf profile is `(3, 1, 2)`. The UI computes a continuous risk matrix at grid-cell centers using the maximum
 weight from all obstacles, then applies manual strokes in order so the latest matching stroke
 wins. Each stroke stores metric `x`, `y`, `radius`, and `weight`; the legacy per-cell `risk`
 map remains accepted for older layouts.

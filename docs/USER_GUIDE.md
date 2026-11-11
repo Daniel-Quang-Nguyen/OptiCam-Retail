@@ -22,6 +22,8 @@ trên trình duyệt.
    mở thông tin và xem DORI/PPM tại mặt, ngực, bụng và chân. Dùng `Delete` để xóa người.
 3. Kéo camera trên tường để đổi vị trí; kéo tay cầm màu cam để đổi hướng theo nấc 15°.
    Chọn camera rồi chỉnh chất lượng, model, pan, FOV, tầm xa và chiều cao trong Inspector.
+   Ô số cho phép xóa giá trị cũ để nhập lại; nhấn `Enter` để áp dụng, `Esc` hoặc rời ô để
+   hủy nội dung đang nhập.
 4. Chọn vật cản để đổi tên/kích thước/chiều cao; xoay bằng nút xoay hoặc phím `R`.
    Cửa được khóa vào cạnh tường; vật cản không được chồng lấn.
 5. Chọn **Heatmap DORI**, **Ma trận rủi ro W**, hoặc **Tắt** để đổi lớp phủ.
@@ -54,6 +56,11 @@ trên trình duyệt.
   Cọ thủ công vẫn dùng mức 5/3/1 và ghi đè lên vùng tự động; nét vẽ sau cùng được ưu tiên.
   Có thể chỉnh kích thước ô trong Inspector; nên chọn `gridM ≤ (R-r0)/3` để lấy mẫu vùng
   chuyển tiếp đủ mịn (ví dụ vùng kệ mặc định khuyến nghị lưới không quá khoảng 0,33 m).
+  Với kệ, chọn nhóm hàng **CRAVED cao** (Wmax 4.5), **thông thường** (3.0) hoặc
+  **cồng kềnh** (1.8); có thể chọn **Tùy chỉnh** hoặc sửa Wmax trực tiếp. Đây là trọng số
+  khởi tạo để ưu tiên bố trí, không phải xác suất/mức trộm cắp đã hiệu chuẩn. CRAVED giúp
+  phân nhóm theo thuộc tính sản phẩm; dữ liệu tổn thất và kiểm kê tại cửa hàng mới nên được
+  dùng để tinh chỉnh các giá trị.
 
 ### Ảnh nền và tỷ lệ
 

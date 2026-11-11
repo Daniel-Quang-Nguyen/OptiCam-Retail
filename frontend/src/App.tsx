@@ -6,14 +6,14 @@ import { Inspector } from './components/Inspector';
 import { BomModal } from './components/BomModal';
 import { Scorecard } from './components/Scorecard';
 import { PRESETS, withManualCams } from './data/presets';
-import { buildZones, evaluate, RISK_DEFAULTS } from './core/optics';
+import { buildZones, evaluate, RISK_DEFAULTS, SHELF_RISK_PROFILES } from './core/optics';
 import { greedyPlace, makeCamera, manualFourCorners, minimumCamerasForTargets } from './core/optimizer';
 import { requestOptimize } from './core/api';
 import { addObstacle, removeObstacle, resizeObstacle, resizeRoom } from './core/editor';
 import { exportBundle, download, parseBundle } from './core/io';
 import { placeObstacle, satCollide, obsPoly, snapAngle, wallAnchors } from './core/geometry';
 import { canPlacePerson } from './core/person';
-import type { Camera, Layout, Obstacle, ObsType, Person, RiskStroke, Score, Weight } from './types';
+import type { Camera, Layout, Obstacle, ObsType, Person, RiskStroke, Score, ShelfRiskCategory, Weight } from './types';
 
 const MAX_CAMS = 20;
 
@@ -49,11 +49,20 @@ export default function App() {
     if (!r) return flash('Không còn chỗ trống cho khối này');
     setLayout(r); setSel({ kind: 'obs', id: r.obstacles[r.obstacles.length - 1].id }); setTool('select');
   };
-  const editObstacle = (id: string, pt: Partial<Pick<Obstacle, 'label' | 'elev' | 'w' | 'h' | 'riskWmax' | 'riskR0' | 'riskR'>>) =>
+  const editObstacle = (id: string, pt: Partial<Pick<Obstacle, 'label' | 'elev' | 'w' | 'h' | 'riskCategory' | 'riskWmax' | 'riskR0' | 'riskR'>>) =>
     setLayout((l) => {
       const o = l.obstacles.find((x) => x.id === id); if (!o) return l;
       const { w, h, ...rest } = pt;
-      if (pt.riskWmax !== undefined) rest.riskWmax = Math.max(1, Math.min(5, pt.riskWmax));
+      if (pt.riskCategory !== undefined) {
+        rest.riskCategory = pt.riskCategory;
+        if (pt.riskCategory !== 'custom' && pt.riskWmax === undefined) {
+          rest.riskWmax = SHELF_RISK_PROFILES[pt.riskCategory].wmax;
+        }
+      }
+      if (pt.riskWmax !== undefined) {
+        rest.riskWmax = Math.max(1, Math.min(5, pt.riskWmax));
+        if (o.type === 'shelf' && pt.riskCategory === undefined) rest.riskCategory = 'custom';
+      }
       if (pt.riskR0 !== undefined) {
         rest.riskR0 = Math.max(0, pt.riskR0);
         if ((pt.riskR ?? o.riskR ?? RISK_DEFAULTS[o.type].radius) <= rest.riskR0) rest.riskR = rest.riskR0 + 0.1;

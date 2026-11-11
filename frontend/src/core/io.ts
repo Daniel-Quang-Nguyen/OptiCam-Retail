@@ -1,6 +1,7 @@
-import { PERSON_TARGETS, type Camera, type Layout, type Obstacle, type RiskStroke, type Score } from '../types';
+import { PERSON_TARGETS, type Camera, type Layout, type Obstacle, type RiskStroke, type Score, type ShelfRiskCategory } from '../types';
 import { buildBom } from './bom';
 import { clamp } from './geometry';
+import { SHELF_RISK_PROFILES } from './optics';
 
 const num = (v: unknown, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
 const TYPES = ['shelf', 'pos', 'entrance'];
@@ -24,12 +25,25 @@ export function normalizeLayout(raw: any): Layout {
   const obstacles: Obstacle[] = L.obstacles.map((o: any, i: number): Obstacle => {
     if (!TYPES.includes(o.type)) throw new Error(`Vật cản #${i + 1}: loại "${o.type}" không hợp lệ.`);
     const defaults = o.type === 'shelf' ? { wmax: 3, r0: 1, radius: 2 } : { wmax: 5, r0: 1, radius: 2.5 };
+    const categoryValues: ShelfRiskCategory[] = ['high', 'standard', 'bulky', 'custom'];
+    const hasRiskWmax = typeof o.riskWmax === 'number' && Number.isFinite(o.riskWmax);
+    const riskCategory: ShelfRiskCategory | undefined = o.type !== 'shelf'
+      ? undefined
+      : categoryValues.includes(o.riskCategory)
+        ? o.riskCategory
+        : hasRiskWmax && Math.abs(o.riskWmax - SHELF_RISK_PROFILES.standard.wmax) > 1e-9
+          ? 'custom'
+          : 'standard';
+    const defaultWmax = o.type === 'shelf'
+      ? SHELF_RISK_PROFILES[riskCategory ?? 'standard'].wmax
+      : defaults.wmax;
     const riskR0 = Math.max(0, num(o.riskR0, defaults.r0));
     return {
       id: String(o.id ?? `obs_${i}`), type: o.type, label: String(o.label ?? o.name ?? o.type),
       x: num(o.x, 0), y: num(o.y, 0), w: num(o.w ?? o.width, 1), h: num(o.h ?? o.height, 1),
       elev: num(o.elev ?? o.elevation, o.type === 'shelf' ? 1.8 : 1.1), angle: num(o.angle, 0),
-      riskWmax: Math.min(5, Math.max(1, num(o.riskWmax, defaults.wmax))),
+      ...(riskCategory ? { riskCategory } : {}),
+      riskWmax: Math.min(5, Math.max(1, num(o.riskWmax, defaultWmax))),
       riskR0,
       riskR: Math.max(riskR0 + 0.1, num(o.riskR, defaults.radius))
     };

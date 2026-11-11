@@ -19,8 +19,9 @@ không phải chứng nhận hiệu năng camera thực.
 - Khoảng cách từ tâm ô đến vật cản chữ nhật (kể cả hình chữ nhật xoay) được tính trong
   hệ tọa độ local của hình chữ nhật. Ô nằm trong kệ/POS là ô đặc và không được tính là
   sàn; cửa không tạo ô đặc.
-- Mỗi vật thể có hồ sơ `(Wmax, r0, R)`. Mặc định POS/cửa là `(5, 1.0 m, 2.5 m)`, kệ là
-  `(3, 1.0 m, 2.0 m)`. Tại khoảng cách `d` đến hình chữ nhật:
+- Mỗi vật thể có hồ sơ `(Wmax, r0, R)`. Mặc định POS/cửa là `(5, 1.0 m, 2.5 m)`.
+  Kệ thông thường dùng `(3, 1.0 m, 2.0 m)`; nhóm CRAVED cao mặc định `Wmax=4.5`, nhóm
+  cồng kềnh `Wmax=1.8`, cùng `r0=1.0 m`, `R=2.0 m`:
 
   ```text
   t = clamp((d - r0) / (R - r0), 0, 1)
@@ -29,7 +30,13 @@ không phải chứng nhận hiệu năng camera thực.
   ```
 
   Trọng số giữ ở `Wmax` trong bán kính lõi `r0`, giảm tuyến tính về 1 tại `R`, và không
-  cộng dồn giữa vật thể. Người dùng có thể chỉnh hồ sơ từng vật thể trong Inspector.
+  cộng dồn giữa vật thể. Người dùng có thể chọn nhóm hàng và chỉnh Wmax/hồ sơ từng kệ
+  trong Inspector. Khi chỉnh Wmax trực tiếp, nhóm được chuyển thành `custom`.
+- CRAVED dùng ở đây để tạo các nhóm khởi tạo (hàng có thuộc tính dễ che giấu/lấy, giá trị
+  hoặc sức hấp dẫn cao; hàng thông thường; hàng cồng kềnh), không tính điểm sáu thuộc tính
+  riêng lẻ. Các Wmax là giả định cấu hình, không phải hệ số đã được tài liệu nghiên cứu
+  xác nhận hoặc dự báo xác suất phạm tội; nên hiệu chỉnh theo dữ liệu tổn thất/kiểm kê của
+  cửa hàng.
 - Cọ rủi ro ghi các nét hình tròn `(x, y, radius, W)` theo mét. Mọi nét có tâm nằm trong
   bán kính đều áp dụng; nét sau cùng khớp với ô sẽ ghi đè nét trước và công thức tự động.
   Vì lưu theo tọa độ thực, thay đổi lưới không làm nét cọ lệch vị trí. Layout cũ vẫn đọc

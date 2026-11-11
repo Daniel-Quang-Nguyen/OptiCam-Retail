@@ -66,6 +66,26 @@ def test_continuous_risk_weights_are_validated_and_used_by_api() -> None:
     assert client.post("/api/v1/optimize", json=payload).status_code == 422
 
 
+def test_shelf_craved_categories_set_configurable_default_weights() -> None:
+    shelf = {"type": "shelf", "x": 2, "y": 1, "w": 0.5, "h": 0.5, "elev": 1.8}
+    point = (2.75, 1.25)
+    weights = {
+        category: obstacle_risk_weight(point, [{**shelf, "riskCategory": category}])
+        for category in ("high", "standard", "bulky")
+    }
+    assert weights == {"high": 4.5, "standard": 3.0, "bulky": 1.8}
+    assert obstacle_risk_weight(point, [{**shelf, "riskCategory": "high", "riskWmax": 4.8}]) == 4.8
+    parsed = main.Obstacle(type="shelf", x=2, y=1, w=0.5, h=0.5, riskCategory="bulky")
+    assert parsed.riskCategory == "bulky"
+    assert obstacle_risk_weight(point, [parsed]) == 1.8
+    try:
+        main.Obstacle(type="shelf", x=2, y=1, riskCategory="unknown")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("Invalid shelf risk category should be rejected")
+
+
 def test_backend_grid_computes_continuous_obstacle_weights_and_last_brush_stroke() -> None:
     pos = {"type": "pos", "x": 1, "y": 1, "w": 1, "h": 1, "elev": 1.1}
     strokes = [

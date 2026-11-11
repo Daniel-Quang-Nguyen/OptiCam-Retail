@@ -1,4 +1,5 @@
 export type ObsType = 'shelf' | 'pos' | 'entrance';
+export type ShelfRiskCategory = 'high' | 'standard' | 'bulky' | 'custom';
 export type Weight = number;
 export type Dori = 'identification' | 'recognition' | 'observation' | 'detection' | 'blind';
 export const PERSON_TARGETS = [
@@ -14,6 +15,7 @@ export interface Obstacle {
   x: number; y: number; w: number; h: number;
   elev: number;   // cao độ (m): kệ 1.8, POS 1.1, cửa 2.4
   angle: number;  // độ, bước 15
+  riskCategory?: ShelfRiskCategory;
   riskWmax?: number;
   riskR0?: number;
   riskR?: number;

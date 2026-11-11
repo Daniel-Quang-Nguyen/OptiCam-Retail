@@ -1,4 +1,4 @@
-import { PERSON_REGIONS, type Camera, type Cell, type Dori, type Layout, type Obstacle, type PersonRegion, type Score, type Weight, type Zone } from '../types';
+import { PERSON_REGIONS, type Camera, type Cell, type Dori, type Layout, type Obstacle, type PersonRegion, type Score, type ShelfRiskCategory, type Weight, type Zone } from '../types';
 import { deg, distToObs, norm360, rad, segmentRectInterval, type Pt } from './geometry';
 
 /** Ngưỡng DORI theo IEC 62676-4 (PPM) */
@@ -13,6 +13,17 @@ export const RISK_DEFAULTS = {
   entrance: { wmax: 5, r0: 1, radius: 2.5 },
   shelf: { wmax: 3, r0: 1, radius: 2 }
 } as const;
+export const SHELF_RISK_PROFILES: Record<ShelfRiskCategory, { wmax: number; label: string }> = {
+  high: { wmax: 4.5, label: 'CRAVED cao' },
+  standard: { wmax: 3, label: 'Hàng thông thường' },
+  bulky: { wmax: 1.8, label: 'Hàng cồng kềnh' },
+  custom: { wmax: 3, label: 'Tùy chỉnh' }
+};
+
+export const obstacleRiskWmax = (obstacle: Obstacle): number =>
+  obstacle.riskWmax ?? (obstacle.type === 'shelf'
+    ? SHELF_RISK_PROFILES[obstacle.riskCategory ?? 'standard'].wmax
+    : RISK_DEFAULTS[obstacle.type].wmax);
 
 export const riskBand = (weight: number): 'red' | 'yellow' | 'green' =>
   weight >= RISK_RED_THRESHOLD ? 'red' : weight >= RISK_YELLOW_THRESHOLD ? 'yellow' : 'green';
@@ -73,7 +84,7 @@ export function buildZones(l: Layout): Zone[] {
       const defaults = RISK_DEFAULTS[obstacle.type];
       const obstacleWeight = riskWeightAt(
         distToObs(cx, cy, obstacle),
-        obstacle.riskWmax ?? defaults.wmax,
+        obstacleRiskWmax(obstacle),
         obstacle.riskR0 ?? defaults.r0,
         obstacle.riskR ?? defaults.radius
       );

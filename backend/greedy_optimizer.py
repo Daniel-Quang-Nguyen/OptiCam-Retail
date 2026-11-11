@@ -14,6 +14,7 @@ RISK_DEFAULTS = {
     "entrance": (5.0, 1.0, 2.5),
     "shelf": (3.0, 1.0, 2.0),
 }
+SHELF_RISK_PROFILES = {"high": 4.5, "standard": 3.0, "bulky": 1.8, "custom": 3.0}
 
 
 def risk_weight_at(distance: float, wmax: float, r0: float, radius: float) -> float:
@@ -141,9 +142,14 @@ def obstacle_risk_weight(point: tuple[float, float], obstacles: Sequence[Any]) -
         if defaults is None:
             continue
         wmax, r0, radius = defaults
-        wmax = float(_value(obstacle, "riskWmax", wmax))
-        r0 = float(_value(obstacle, "riskR0", r0))
-        radius = float(_value(obstacle, "riskR", radius))
+        category = _value(obstacle, "riskCategory", "standard") or "standard"
+        category_wmax = SHELF_RISK_PROFILES.get(category, defaults[0]) if obstacle_type == "shelf" else defaults[0]
+        custom_wmax = _value(obstacle, "riskWmax")
+        custom_r0 = _value(obstacle, "riskR0")
+        custom_radius = _value(obstacle, "riskR")
+        wmax = float(category_wmax if custom_wmax is None else custom_wmax)
+        r0 = float(r0 if custom_r0 is None else custom_r0)
+        radius = float(radius if custom_radius is None else custom_radius)
         weight = max(weight, risk_weight_at(_distance_to_obstacle(point, obstacle), wmax, r0, radius))
     return weight
 

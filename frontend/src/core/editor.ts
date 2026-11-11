@@ -2,7 +2,7 @@ import type { Camera, Layout, Obstacle, ObsType } from '../types';
 import { clamp, obsPoly, placeObstacle, round2, satCollide, snap, snapToWall } from './geometry';
 
 export const TEMPLATES: Record<ObsType, Omit<Obstacle, 'id' | 'x' | 'y'>> = {
-  shelf: { type: 'shelf', label: 'Kệ hàng', w: 4, h: 0.5, elev: 1.8, angle: 0 },
+  shelf: { type: 'shelf', label: 'Kệ hàng', w: 4, h: 0.5, elev: 1.8, angle: 0, riskCategory: 'standard' },
   pos: { type: 'pos', label: 'Quầy POS', w: 2, h: 1, elev: 1.1, angle: 0 },
   entrance: { type: 'entrance', label: 'Cửa chính', w: 1.5, h: 0.2, elev: 2.2, angle: 0 }
 };
